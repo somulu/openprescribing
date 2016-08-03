@@ -11,12 +11,18 @@
 
 {% block content %}
 
-<h1>CCG: {{ ccg.name }}</h1>
+<h1 style="font-size: 48px">{{ ccg.name }}</h1>
 
 <div class="row" id="intro">
 
-<div class="col-md-6">
-<p>Standard practices currently in this CCG:</p>
+<div class="col-md-9">
+
+<p style="font-size: 32px">We have created some indicative <a href="{% url 'caution' %}#metrics">prescribing measures</a> to show where this CCG could prescribe more safely or efficiently.</p>
+
+<p id="perfsummary">Loading...</p>
+
+<!-- This CCG currently contains {{ practices.count }} standard GP practices.
+<p>Standard practies currently in this CCG:</p>
 <ul class="list-unstyled" id="practices">
 {% for p in practices %}
 <li
@@ -30,23 +36,14 @@ class='hidden'
 {% endfor %}
 </ul>
 {% if practices.count > 6 %}
-<a id="showall" href="#">&raquo; show all {{ practices.count }}  practices...</a>
+<a id="showall" href="#">&raquo; show all   practices...</a>
 {% endif %}
+ -->
 </div>
 
-<div class="col-md-6" id="map-container">
+<div class="col-md-3" id="map-container">
 <div id="map-measure"></div>
 </div>
-
-</div>
-
-<hr/>
-
-<div id="intro">
-
-<p>We have brought together various prescribing measures to show how this organisation compares with its peers across NHS England. These are indicative only, and should be approached with caution. <a href='{% url 'caution' %}#metrics'>Read more about measures</a>.</p>
-
-<p id="perfsummary">Loading...</p>
 
 </div>
 
@@ -84,15 +81,23 @@ class='hidden'
 <script id="measure-panel" type="text/x-handlebars-template">
 <div id="measure_{{ chartId }}" class="col-xs-12 col-sm-12 col-md-12 col-lg-12 chart" data-id="{{ chartId }}" data-costsaving="{{ costSaving50th }}">
     <div class="panel panel-info">
-        <div class="panel-heading">
+        <div class="panel-heading" style="font-size: 24px">
             <a href="{{ chartTitleUrl }}">{{ chartTitle }}</a>
         </div>
         <div class="panel-body" class="row">
             <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6 inner">
-                <p><strong>Why it matters:</strong> {{ why_it_matters }}</p>
+                {{{ why_it_matters }}}
+                <div style="margin-top: 12px">
+                {{{ chartExplanation }}}
+                </div>
+                <details style="margin-top: 12px">
+                <summary>Full definition</summary>
+                <p>{{{ description }}}
+                </details>
+<!--                 <p><strong>Why it matters:</strong> {{ why_it_matters }}</p>
                 <p><strong>Description:</strong> {{{ description }}}</p>
                 <p><strong>Performance:</strong> {{{ chartExplanation }}}</p>
-                <p><strong>Explore:</strong> see <a href="{{ chartTitleUrl }}">how all practices in this CCG</a> contribute to this CCG's performance.</p>
+                <p><strong>Explore:</strong> see <a href="{{ chartTitleUrl }}">how all practices in this CCG</a> contribute to this CCG's performance.</p> -->
             </div>
             <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6" id="{{ chartId }}">
                 <div class="status"></div>

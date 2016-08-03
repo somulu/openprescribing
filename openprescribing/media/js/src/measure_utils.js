@@ -190,14 +190,17 @@ var utils = {
       });
       if (options.rollUpBy === 'measure_id') {
         perf.performanceDescription = "Over the past " + numMonths +
-          " months, this organisation has prescribed worse than the median on " +
-          perf.worseThanMedian + " of " + perf.total + " measures. ";
+          " months, this ";
+        perf.performanceDescription += (options.orgType === 'practice') ?
+                  "practice " : "CCG ";
+        perf.performanceDescription += " has prescribed better than the median on " +
+          (perf.total - perf.worseThanMedian) + " of our " + perf.total + " measures. ";
       } else {
         perf.performanceDescription = "Over the past " + numMonths +
-          " months, " + perf.worseThanMedian + " of " + perf.total + ' ';
+          " months, " + (perf.total - perf.worseThanMedian) + " of " + perf.total + ' ';
         perf.performanceDescription += (options.orgType === 'practice') ?
           "practices " : "CCGs ";
-        perf.performanceDescription += "have prescribed worse than the " +
+        perf.performanceDescription += "have prescribed better than the " +
           "national median. ";
       }
       perf.proportionAboveMedian = perf.worseThanMedian / perf.total;
@@ -216,10 +219,12 @@ var utils = {
       }
       if (options.rollUpBy === 'measure_id') {
         var p = humanize.numberFormat(orderedData[0].meanPercentile, 0);
-        perf.topOpportunity = 'The measure with the biggest potential for ' +
-          ' improvement was ' + orderedData[0].name + ', where this ' +
-          options.orgType + ' was at the ' + humanize.ordinal(p) +
-          ' percentile on average across the past ' + numMonths + ' months.';
+        perf.topOpportunity = '';
+        //'The area with the biggest potential for ' +
+          //' improvement was ' + orderedData[0].name + '.';
+          // + ', where this ' +
+          // options.orgType + ' was at the ' + humanize.ordinal(p) +
+          // ' percentile on average across the past ' + numMonths + ' months.';
       }
       perf.proportionAboveMedian =
         humanize.numberFormat(perf.proportionAboveMedian * 100, 1);
@@ -349,10 +354,14 @@ var utils = {
               humanize.numberFormat((d.costSaving50th * -1), 2) +
               ' over the past ' + numMonths + ' months.';
           } else {
-            chartExplanation += 'If it had prescribed in line with the ' +
-              'median, this ' + options.orgType + ' would have spent £' +
+            // chartExplanation += 'If it had prescribed in line with the ' +
+            //   'median, this ' + options.orgType + ' would have spent £' +
+            //   humanize.numberFormat(d.costSaving50th, 2) +
+            //   ' less over the past ' + numMonths + ' months.';
+            chartExplanation += 'If it improved to prescribe in line with the ' +
+              'median, this ' + options.orgType + ' could save around £' +
               humanize.numberFormat(d.costSaving50th, 2) +
-              ' less over the past ' + numMonths + ' months.';
+              ' over the next ' + numMonths + ' months.';
           }
       }
     }

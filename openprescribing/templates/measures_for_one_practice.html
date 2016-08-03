@@ -11,25 +11,36 @@
 
 {% block content %}
 
-<h1>{{ practice }}</h1>
+<h1 style="font-size: 64px">{{ practice }}</h1>
+
+<p class="subheader" style="font-size: 16px">
+{% if practice.ccg %}
+Part of <a href="{% url 'measures_for_one_ccg' practice.ccg.code %}">{{ practice.ccg.name }}</a>
+{% endif %}
+</p>
 
 <div class="row" id="intro">
 
-<div class="col-md-6">
-<p class="lead">Address: {{ practice.address_pretty }}</p>
-{% if practice.ccg %}
-<p class="lead">Part of CCG: <a href="{% url 'measures_for_one_ccg' practice.ccg.code %}">{{ practice.ccg.name }}</a></p>
-{% endif %}
+<div class="col-md-9">
+
+<p style="font-size: 32px">We have created some indicative <a href="{% url 'caution' %}#metrics">prescribing measures</a> to show where this GP practice could prescribe more safely or efficiently.</p>
+
+<p id="perfsummary">Loading...</p>
+
+</div>
+
+<div class="col-md-3" id="map-container">
+<!-- <p class="lead">Address: {{ practice.address_pretty }}</p> -->
+
 {% if practice.list_size_13 %}
 <p class="lead">Registered patients in 2013/14: {{ practice.list_size_13|intcomma }}</p>
 {% endif %}
+{% if practice.get_setting_display != 'GP Practice' %}
 <p class="lead">Current practice type: {{ practice.get_setting_display }}</p>
-</div>
-
-<div class="col-md-6" id="map-container">
-<div id="map-measure"></div>
-<small>Practice locations are approximate, based on postcode.</small>
-</div>
+{% endif %}
+<!-- <div id="map-measure"></div>
+<small style='font-size: 12px'>Practice locations are approximate.</small>
+</div> -->
 </div>
 
 <hr/>
@@ -40,13 +51,9 @@
 </div>
 {% endif %}
 
-<p>We have brought together various prescribing measures to show how this organisation compares with its peers across NHS England. These are indicative only, and should be approached with caution. <a href="{% url 'caution' %}#metrics">Read more about measures</a>.</p>
-
-<p id="perfsummary">Loading...</p>
-
 </div> <!-- /#intro -->
 
-<div id="toggle">Sort measures by:
+<div id="toggle">Sort prescribing measures by:
 <div class="btn-group" id="order">
     <button type="button" data-orderby="percentile" class="btn btn-default active" aria-label="Percentile">
         Potential for improvement
@@ -80,15 +87,23 @@
 <script id="measure-panel" type="text/x-handlebars-template">
 <div id="measure_{{ chartId }}" class="col-xs-12 col-sm-12 col-md-12 col-lg-12 chart" data-id="{{ chartId }}" data-costsaving="{{ costSaving50th }}">
     <div class="panel panel-info">
-        <div class="panel-heading">
+        <div class="panel-heading" style="font-size: 24px">
             <a href="{{ chartTitleUrl }}">{{ chartTitle }}</a>
         </div>
         <div class="panel-body" class="row">
             <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6 inner">
-                <p><strong>Why it matters:</strong> {{ why_it_matters }}</p>
-                <p><strong>Description:</strong> {{{ description }}}</p>
-                <p><strong>Performance:</strong> {{{ chartExplanation }}}</p>
-                <p><strong>Explore:</strong> prescribing of this measure by <a href="{{ chartTitleUrl }}">other practices in the same CCG</a>.</p>
+                {{{ why_it_matters }}}
+                <div style="margin-top: 12px">
+                {{{ chartExplanation }}}
+                </div>
+                <details style="margin-top: 12px">
+                <summary>Full definition</summary>
+                <p>{{{ description }}}
+                </details>
+                <!-- <p><strong>Why it matters:</strong> {{ why_it_matters }}</p> -->
+                <!-- <p><strong>Definition:</strong> {{{ description }}}</p> -->
+                <!-- <p><strong>Performance:</strong> {{{ chartExplanation }}}</p> -->
+                <!-- <p><strong>Explore:</strong> prescribing of this measure by <a href="{{ chartTitleUrl }}">other practices in the same CCG</a>.</p> -->
             </div>
             <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6" id="{{ chartId }}">
                 <div class="status"></div>
@@ -101,6 +116,8 @@
 {% endverbatim %}
 
 <hr/>
+
+<small>Warning! These are important measures, but they should be interpreted thoughtfully. There may be good reasons why a practice is prescribing more or less of something than other practices in the country, e.g. they may have a very different patient population to the national average.</small><br/><br/>
 
 <small id="location">Practice locations based on <a href="http://systems.hscic.gov.uk/data/ods/datadownloads/onsdata">data from HSCIC/ONS</a>. Contains OS data © Crown copyright and database right 2016, Royal Mail data © Royal Mail copyright and database right 2016, National Statistics data © Crown copyright and database right 2016.</small>
 

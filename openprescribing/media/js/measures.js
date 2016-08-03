@@ -30,7 +30,7 @@
         Handlebars.compile($(_this.el.summaryTemplate).html());
       var panelTemplate =
         Handlebars.compile($(_this.el.panelTemplate).html());
-      var NUM_MONTHS_FOR_RANKING = 6;
+      var NUM_MONTHS_FOR_RANKING = 12;
       var centiles = ['10', '20', '30', '40', '50', '60', '70', '80', '90'];
 
       _this.allGraphsRendered = false;

@@ -191,7 +191,9 @@
 
         ],
         "why_it_matters": [
-            "Various angiotensin receptor blockers (ARBs) are available. A number of them are now available generically, and are of low cost. NICE guidance for treating high blood pressure recommends that the low-cost versions should be used."
+            "NICE guidance for treating high blood pressure recommends using ",
+            "the low-cost, generic versions of angiotensin receptor blockers (ARBs). ",
+            "Prescribe fewer high-cost ARBs to save money."
         ],
         "numerator_short": "High-cost ARBs quantity",
         "denominator_short": "All included ARBs quantity",
