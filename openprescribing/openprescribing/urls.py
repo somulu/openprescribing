@@ -3,6 +3,8 @@ from django.views.generic import RedirectView, TemplateView
 from django.contrib import admin
 from frontend.views import views as frontend_views
 from frontend.views import bookmark_views
+from frontend.views import labs_views
+
 
 admin.autodiscover()
 
@@ -17,6 +19,10 @@ urlpatterns = [
     url(r'^how-to-use/$',
         TemplateView.as_view(template_name='how-to-use.html'),
         name="how-to-use"),
+
+    # Labs
+    url(r'^data_for_equivalents/$', labs_views.data_for_equivalents,
+        name="data_for_equivalents"),
 
     # User-facing pages.
     url(r'^analyse/$', frontend_views.analyse,

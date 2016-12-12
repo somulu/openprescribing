@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load template_extras %}
+
+{% block title %}Plotting{% endblock %}
+
+{% block content %}
+
+<h2>{{ generic_name }} </h2>
+
+<img src="data:image/png;base64,{{ imgdata|safe }}">
+
+{% endblock %}
+
+{% block extra_js %}
+{% conditional_js 'openprescribing' %}
+{% endblock %}
