@@ -23,6 +23,8 @@ urlpatterns = [
     url(r'^measure_by_practice/$', views_measures.measure_by_practice,
         name='measure_by_practice'),
     url(r'^org_details/$', views_org_details.org_details),
+    url(r'^bnf_code/data_for_equivalents/$',
+        views_bnf_codes.data_for_equivalents),
     url(r'^bnf_code/$', views_bnf_codes.bnf_codes),
     url(r'^org_code/$', views_org_codes.org_codes),
     url(r'^org_location/$', views_org_location.org_location),

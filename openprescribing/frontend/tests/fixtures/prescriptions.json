@@ -220,7 +220,24 @@
             "chemical": "0204000I0",
             "pct": "03V",
             "practice": "K83059",
+          "sha": "Q46"
+        }
+    },
+    {
+        "model": "frontend.prescription",
+        "pk": 1000014,
+        "fields": {
+            "presentation_code": "0204000I0JKKKAL",
+            "presentation_name": "Sebetalol 50mg",
+            "total_items": 1,
+            "actual_cost": 140.00,
+            "quantity": 1,
+            "processing_date": "2014-11-01",
+            "chemical": "0204000I0",
+            "pct": "03V",
+            "practice": "K83059",
             "sha": "Q46"
         }
+
     }
 ]

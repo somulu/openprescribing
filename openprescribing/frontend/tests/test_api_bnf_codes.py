@@ -20,6 +20,25 @@ class TestAPIBNFCodeViews(ApiTestBase):
         except ValueError:
             raise AssertionError("Expected %s... to be JSON" % content[:10])
 
+    def test_data_for_equivalents_with_invalid_code(self):
+        url = '%s/bnf_code/data_for_equivalents?q=asd&format=json'
+        response = self.client.get(url % self.api_prefix, follow=True)
+        self.assertEqual(response.status_code, 400)
+
+    def test_data_for_equivalents_with_invalid_date(self):
+        url = ('%s/bnf_code/data_for_equivalents?q=0204000I0JKKKAL'
+               '&date=1234&format=json')
+        response = self.client.get(url % self.api_prefix, follow=True)
+        self.assertEqual(response.status_code, 400)
+
+    def test_data_for_equivalents_with_branded_passed_in(self):
+        url = '%s/bnf_code/data_for_equivalents?q=0204000I0JKKKAL&format=json'
+        response = self.client.get(url % self.api_prefix, follow=True)
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content)
+        self.assertEqual(len(content), 2)
+        self.assertEqual(content[0]['presentation_code'], '0204000I0AAALAL')
+
     def test_header_and_query_string_json_negotiation(self):
         url = '%s/bnf_code?q=lor&format=json' % self.api_prefix
         response = self.client.get(url, follow=True)
