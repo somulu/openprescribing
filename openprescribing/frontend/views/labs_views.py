@@ -1,20 +1,19 @@
-import base64
-import datetime
-from django.shortcuts import render
-import pandas as pd
-import matplotlib
 from StringIO import StringIO
+from django.shortcuts import render
+from django.views.decorators.cache import cache_page
+import base64
+import matplotlib
+import pandas as pd
 
 
-def data_for_equivalents(request):
+@cache_page(0)
+def data_for_equivalents(request, code, date):
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    today = "2016-09-01"
-    code = request.GET.get('q', '')
     hide_generic = request.GET.get('hide_generic', False)
     url = 'http://staging.openprescribing.net/api/1.0/bnf_code/data_for_equivalents'
     df = pd.read_json(
-        url + '?q=%s&date=%s&format=json' % (code, today),
+        url + '?q=%s&date=%s&format=json' % (code, date),
         orient='records')
     df['ppq'] = df['actual_cost'] / df['quantity']
     fig, ax = plt.subplots()

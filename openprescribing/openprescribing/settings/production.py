@@ -39,14 +39,35 @@ DATABASES = {
 # END DATABASE CONFIGURATION
 
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+    'file': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '%s/cache/' % INSTALL_ROOT,
+        'TIMEOUT': 0,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
 # CACHE CONFIGURATION
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#caches
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+    'file': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '%s/cache/' % INSTALL_ROOT,
+        'TIMEOUT': 0,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
     }
 }
-# END CACHE CONFIGURATION
 
 GOOGLE_TRACKING_ID = 'UA-62480003-1'
 
