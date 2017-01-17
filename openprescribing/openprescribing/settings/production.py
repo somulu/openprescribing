@@ -41,9 +41,6 @@ DATABASES = {
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-    },
-    'file': {
         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
         'LOCATION': '%s/cache/' % INSTALL_ROOT,
         'TIMEOUT': 0,
