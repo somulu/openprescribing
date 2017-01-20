@@ -573,3 +573,20 @@ class Profile(models.Model):
         search_bookmark = self.user.searchbookmark_set.last()
         bookmarks = [x for x in [org_bookmark, search_bookmark] if x]
         return sorted(bookmarks, key=lambda x: x.created_at)[-1]
+
+
+class GenericCodeMapping(models.Model):
+    """A mapping between BNF codes that allows us to collapse clinically
+    equivalent chemicals together.
+
+    See https://github.com/ebmdatalab/price-per-dose/issues/11 for
+    background.
+
+    A `to_code` may end in `%`, which means it's a special case which
+    should be treated as a stem against which to search for generics.
+
+    """
+    from_code = models.CharField(max_length=15, primary_key=True,
+                                 validators=[isAlphaNumeric], db_index=True)
+    to_code = models.CharField(max_length=15,
+                               validators=[isAlphaNumeric], db_index=True)

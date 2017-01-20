@@ -21,23 +21,52 @@ class TestAPIBNFCodeViews(ApiTestBase):
             raise AssertionError("Expected %s... to be JSON" % content[:10])
 
     def test_data_for_equivalents_with_invalid_code(self):
-        url = '%s/bnf_code/data_for_equivalents?q=asd&format=json'
-        response = self.client.get(url % self.api_prefix, follow=True)
+        date = '2014-09-01'
+        url = '%s/bnf_code/data_for_equivalents?q=asd&date=%sformat=json'
+        response = self.client.get(
+            url % (self.api_prefix, date), follow=True)
         self.assertEqual(response.status_code, 400)
 
     def test_data_for_equivalents_with_invalid_date(self):
-        url = ('%s/bnf_code/data_for_equivalents?q=0204000I0JKKKAL'
+        code = '0202010B0AAABAB'
+        url = ('%s/bnf_code/data_for_equivalents?q=%s'
                '&date=1234&format=json')
-        response = self.client.get(url % self.api_prefix, follow=True)
+        response = self.client.get(
+            url % (self.api_prefix, code), follow=True)
         self.assertEqual(response.status_code, 400)
 
     def test_data_for_equivalents_with_branded_passed_in(self):
-        url = '%s/bnf_code/data_for_equivalents?q=0204000I0JKKKAL&format=json'
-        response = self.client.get(url % self.api_prefix, follow=True)
+        date = '2014-11-01'
+        code = '0204000I0JKKKAL'
+        url = '%s/bnf_code/data_for_equivalents?q=%s&date=%s&format=json'
+        response = self.client.get(
+            url % (self.api_prefix, code, date), follow=True)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content)
         self.assertEqual(len(content), 2)
         self.assertEqual(content[0]['presentation_code'], '0204000I0AAALAL')
+
+    def test_data_for_equivalents_with_substitutions(self):
+        date = '2014-09-01'
+        code = '0202010B0AAABAB'
+        url = "%s/bnf_code/data_for_equivalents?q=%s&date=%s&format=json"
+        response = self.client.get(
+            url % (self.api_prefix, code, date),
+            follow=True)
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content)
+        self.assertEqual(len(content), 3)
+
+    def test_data_for_equivalents_with_wildcard_substitutions(self):
+        date = '2013-04-01'
+        code = '0202010B0AAACAC'
+        url = "%s/bnf_code/data_for_equivalents?q=%s&date=%s&format=json"
+        response = self.client.get(
+            url % (self.api_prefix, code, date),
+            follow=True)
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content)
+        self.assertEqual(len(content), 2)
 
     def test_header_and_query_string_json_negotiation(self):
         url = '%s/bnf_code?q=lor&format=json' % self.api_prefix

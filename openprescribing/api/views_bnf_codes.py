@@ -1,15 +1,18 @@
-import simplejson
+from sets import Set
 import datetime
+import numpy as np
 import re
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import APIException
-from django.db.models import Q
 from django.db import connection
+from django.db.models import Q
+
 import view_utils as utils
 from frontend.models import Chemical, Section, Product, Presentation
 from frontend.models import ImportLog
-from frontend.models import Prescription
+from frontend.models import GenericCodeMapping
 
 
 class NotValid(APIException):
@@ -51,15 +54,28 @@ def data_for_equivalents(request, format=None):
         date = ImportLog.objects.latest_in_category('prescribing').current_at
     if not re.match(r'[A-Z0-9]{15}', code):
         raise NotValid("%s is not a valid code" % code)
-    pattern = "%s____%s" % (code[:9], code[13:15])
+    extra_codes = GenericCodeMapping.objects.filter(
+        Q(from_code=code) | Q(to_code=code))
+    # flatten and uniquify the list of codes
+    extra_codes = Set(np.array(
+        [[x.from_code, x.to_code] for x in extra_codes]).flatten())
+    patterns = ["%s____%s" % (code[:9], code[13:15])]
+    for extra_code in extra_codes:
+        if extra_code.endswith('%'):
+            pattern = extra_code
+        else:
+            pattern = "%s____%s" % (extra_code[:9], extra_code[13:15])
+        patterns.append(pattern)
+    conditions = " OR ".join(["presentation_code LIKE %s "] * len(patterns))
+    conditions = "AND (%s) " % conditions
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT presentation_code, presentation_name, "
             "quantity, actual_cost "
             "FROM frontend_prescription "
             "WHERE processing_date = %s "
-            "AND presentation_code LIKE %s "
-            "ORDER BY presentation_code, quantity DESC", [date, pattern])
+            + conditions +
+            "ORDER BY presentation_code, quantity DESC", [date] + patterns)
         data = dictfetchall(cursor)
     return Response(data)
 

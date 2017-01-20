@@ -9,7 +9,7 @@ class ApiTestBase(TestCase):
     """
     fixtures = ['ccgs', 'practices', 'practice_listsizes', 'products',
                 'presentations', 'sections', 'prescriptions', 'chemicals',
-                'shas', 'importlog']
+                'shas', 'importlog', 'generic_code_mapping']
     api_prefix = '/api/1.0'
 
     def setUp(self):
