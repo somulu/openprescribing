@@ -1,0 +1,28 @@
+drop table if exists dmd_product;
+create table dmd_product (
+  dmdid bigint primary key,
+  bnf_code text,
+  vpid bigint,
+  display_name text,
+  ema text,
+  pres_statcd integer,
+  avail_restrictcd integer,
+  product_type integer,
+  non_availcd integer,
+  concept_class integer,
+  nurse_f integer,
+  dent_f integer,
+  prod_order_no text,
+  sched_1 integer,
+  sched_2 integer,
+  padm integer,
+  fp10_mda integer,
+  acbs integer,
+  assort_flav integer,
+  catcd integer,
+  tariff_category integer,
+  flag_imported integer,
+  flag_broken_bulk integer,
+  flag_non_bioequivalence integer,
+  flag_special_containers integer
+  );
