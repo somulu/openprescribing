@@ -21,6 +21,9 @@ urlpatterns = [
         name="how-to-use"),
 
     # Labs
+    url(r'^data_for_equivalents/(?P<code>[A-Z\d]+)/(?P<date>[\d-]+)/graph.png$',
+        labs_views.image_for_equivalents,
+        name="data_for_equivalents"),
     url(r'^data_for_equivalents/(?P<code>[A-Z\d]+)/(?P<date>[\d-]+)$',
         labs_views.data_for_equivalents,
         name="data_for_equivalents"),

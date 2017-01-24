@@ -6,13 +6,20 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from django.http import HttpResponse
 from django.shortcuts import render
-from django.views.decorators.cache import cache_page
 
 
-
-@cache_page(0)
 def data_for_equivalents(request, code, date):
+    hide_generic = request.GET.get('hide_generic', False)
+    generic_name = ''
+    context = {
+        'generic_name': generic_name
+    }
+    return render(request, 'plot_brands.html', context)
+
+
+def image_for_equivalents(request, code, date):
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     hide_generic = request.GET.get('hide_generic', False)
@@ -21,19 +28,15 @@ def data_for_equivalents(request, code, date):
         "?q=%s&date=%s&format=json" % (code, date))
     df = pd.read_json(url, orient='records')
     df['ppq'] = df['actual_cost'] / df['quantity']
-    generic_name = ''
+    plt.figure(figsize=(12, 8))
     if len(df) > 0:
-        plt.figure(figsize=(12, 8))
-        generic_name = ""
         data = []
         hist, bin_edges = np.histogram(df['ppq'])
         ordered = df.groupby('presentation_name')['ppq'].aggregate({'mean_ppq': 'mean'}).sort_values('mean_ppq').index
         for name in ordered:
             current = df[df.presentation_name == name]
-            if current.iloc[0].presentation_code[9:11] == 'AA':
-                generic_name = current.loc[0].presentation_name
-                if hide_generic:
-                    continue
+            if hide_generic and current.iloc[0].presentation_code[9:11] == 'AA':
+                continue
             data.append(
                 plt.hist(
                     current['ppq'],
@@ -51,15 +54,6 @@ def data_for_equivalents(request, code, date):
             plt.title("Price per quantity for brands")
         else:
             plt.title("Price per quantity for brands and generics")
-        ob = StringIO()
-        plt.savefig(ob, dpi=75, bbox_inches='tight')
-        ob.seek(0)
-        imgdata = base64.b64encode(ob.read())
-    else:
-        imgdata = ""
-        generic_name = "unknown"
-    context = {
-        'imgdata': imgdata,
-        'generic_name': generic_name
-    }
-    return render(request, 'plot_brands.html', context)
+    response = HttpResponse(content_type="image/png")
+    plt.savefig(response, format="png", dpi=75, bbox_inches='tight')
+    return response

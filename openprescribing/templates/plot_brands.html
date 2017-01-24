@@ -7,7 +7,7 @@
 
 <h2>{{ generic_name }} </h2>
 
-<img src="data:image/png;base64,{{ imgdata|safe }}">
+<img src="{{ request.path }}/graph.png">
 
 {% endblock %}
 
