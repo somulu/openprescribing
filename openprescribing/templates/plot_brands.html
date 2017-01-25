@@ -14,7 +14,7 @@
 <img src="{{ request.path }}/graph.png">
 
 {% if product %}
-<table>
+<table class="table table-condensed">
   <tr>
     <th>Tariff category</th>
     <td>{{ product.tariff_category }}</td>
@@ -29,7 +29,7 @@
   </tr>
   <tr>
     <th>Broken bulk?</th>
-    <td>{% if product.is_broken_bulk %}Yes{% endif %}</td>
+    <td>{% if product.is_broken_bulk %}Yes{% else %}No{% endif %}</td>
   </tr>
   <tr>
     <th>Special container?</th>
