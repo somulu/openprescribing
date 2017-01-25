@@ -1,30 +1,33 @@
-import base64
-from StringIO import StringIO
-
 import matplotlib
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
+# Use thread-safe graphical backend for matplotlib. See
+# http://matplotlib.org/faq/howto_faq.html#matplotlib-in-a-web-application-server
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 from django.http import HttpResponse
 from django.shortcuts import render
 
 from frontend.dmd_models import DMDProduct
+from frontend.models import Presentation
 
 
 def data_for_equivalents(request, code, date):
     generic_name = ''
     product = DMDProduct.objects.filter(bnf_code=code).first()
+    bnf_presentation = Presentation.objects.get(pk=code)
     context = {
         'generic_name': generic_name,
-        'product': product
+        'product': product,
+        'bnf_presentation': bnf_presentation
     }
     return render(request, 'plot_brands.html', context)
 
 
 def image_for_equivalents(request, code, date):
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
     hide_generic = request.GET.get('hide_generic', False)
     url = request.build_absolute_uri(
         "/api/1.0/bnf_code/data_for_equivalents"

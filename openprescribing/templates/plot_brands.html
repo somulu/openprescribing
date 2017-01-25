@@ -5,10 +5,15 @@
 
 {% block content %}
 
-<h2>{{ product.display_name }} </h2>
+{% if product %}
+  <h2>{{ product.display_name }}</h2>
+{% else %}
+  <h2>{{ bnf_presentation.name }}</h2>
+{% endif %}
 
 <img src="{{ request.path }}/graph.png">
 
+{% if product %}
 <table>
   <tr>
     <th>Tariff category</th>
@@ -34,6 +39,13 @@
     <th>Can have personal administration fee?</th>
     <td>{{ product.can_have_personal_administration_fee }}</td>
   </tr>
+</table>
+
+{% else %}
+
+Extended DMD information not available for this presentation.
+
+{% endif %}
 
 
 {% endblock %}
