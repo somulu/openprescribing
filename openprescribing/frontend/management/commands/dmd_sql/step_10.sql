@@ -1,5 +1,5 @@
 update dmd_product
-set acbs = 1
+set acbs = true
 where dmdid in (
   select dmdid
   from dmd_product

@@ -1,5 +1,6 @@
 from lxml import etree
 import glob
+import os
 import re
 
 from django.core.management.base import BaseCommand, CommandError
@@ -80,7 +81,7 @@ def get_table_info(source_directory, schema_names):
                     # In the LOOKUP namespace, the key we use for
                     # table_name is not unique and is always INFO, so
                     # we special-case that.
-                    current_table_def['table_name'] = 'LOOKUP_' + table.attrib['name']
+                    current_table_def['table_name'] = table_prefix + 'LOOKUP_' + table.attrib['name']
                     current_table_def['node_name'] = "%s/INFO" % table.attrib['name']
                 else:
                     current_table_def['table_name'] = table_prefix + table_metadata.attrib['name']
@@ -125,7 +126,8 @@ def create_dmd_product():
     # Follow steps from
     # http://www.nhsbsa.nhs.uk/PrescriptionServices/Documents/PrescriptionServices/dmd_Implemention_Guide_(Primary_Care)_v1.0.pdf
     with connection.cursor() as cursor:
-        for f in sorted(glob.glob("./dmd_sql/*sql"),
+        fpath = os.path.dirname(__file__)
+        for f in sorted(glob.glob("%s/dmd_sql/*sql" % fpath),
                         key=lambda x: int(re.findall(r'\d+', x)[0])):
             print "Post-processing", f
             with open(f, "rb") as sql:

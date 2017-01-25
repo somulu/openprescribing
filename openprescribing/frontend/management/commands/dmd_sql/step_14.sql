@@ -1,5 +1,5 @@
 update dmd_product
-set assort_flav = 1
+set assort_flav = true
 where dmdid in (
   select dmdid
   from dmd_product
@@ -7,4 +7,4 @@ where dmdid in (
     on dmd_product.dmdid = dmd_amp.apid
   where dmd_amp.suppcd = 21014611000001102
   and dmd_amp.avail_restrictcd != 9
-  and acbs = 1)
+  and acbs = true)

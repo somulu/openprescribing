@@ -1,5 +1,5 @@
 update dmd_product
-set nurse_f = 1
+set nurse_f = true
 where dmdid in (select
   dmdid
 from dmd_product

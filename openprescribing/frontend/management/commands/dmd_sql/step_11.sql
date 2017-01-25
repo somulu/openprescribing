@@ -1,5 +1,5 @@
 update dmd_product
-set sched_2 = 1
+set sched_2 = true
 where dmdid in (
   select dmdid
   from dmd_product

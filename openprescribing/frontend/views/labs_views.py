@@ -9,12 +9,15 @@ import seaborn as sns
 from django.http import HttpResponse
 from django.shortcuts import render
 
+from frontend.dmd_models import DMDProduct
+
 
 def data_for_equivalents(request, code, date):
-    hide_generic = request.GET.get('hide_generic', False)
     generic_name = ''
+    product = DMDProduct.objects.filter(bnf_code=code).first()
     context = {
-        'generic_name': generic_name
+        'generic_name': generic_name,
+        'product': product
     }
     return render(request, 'plot_brands.html', context)
 
@@ -27,9 +30,9 @@ def image_for_equivalents(request, code, date):
         "/api/1.0/bnf_code/data_for_equivalents"
         "?q=%s&date=%s&format=json" % (code, date))
     df = pd.read_json(url, orient='records')
-    df['ppq'] = df['actual_cost'] / df['quantity']
     plt.figure(figsize=(12, 8))
     if len(df) > 0:
+        df['ppq'] = df['actual_cost'] / df['quantity']
         data = []
         hist, bin_edges = np.histogram(df['ppq'])
         ordered = df.groupby('presentation_name')['ppq'].aggregate({'mean_ppq': 'mean'}).sort_values('mean_ppq').index

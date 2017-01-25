@@ -1,5 +1,5 @@
 update dmd_product
-set flag_broken_bulk = 1
+set flag_broken_bulk = true
 where dmdid in (select
   dmd_product.dmdid
 from dmd_product
@@ -12,7 +12,7 @@ inner join dmd_reimb_info
   and dmd_reimb_info.bb = 1);
 
 update dmd_product
-set flag_imported = 1
+set flag_imported = true
 where dmdid in (select
   dmd_product.dmdid
 from dmd_product
@@ -20,7 +20,7 @@ where avail_restrictcd = 4);
 
 
 update dmd_product
-set flag_non_bioequivalence = 1
+set flag_non_bioequivalence = true
 where dmdid in (select dmdid
 from dmd_product
 inner join dmd_vmpp
@@ -31,7 +31,7 @@ where dmd_vmp.pres_statcd = 6);
 
 
 update dmd_product
-set flag_special_containers = 1
+set flag_special_containers = true
 where dmdid in (
 select dmdid from dmd_product
 inner join dmd_amp

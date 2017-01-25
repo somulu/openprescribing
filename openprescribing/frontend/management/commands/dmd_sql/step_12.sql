@@ -1,5 +1,5 @@
 update dmd_product
-set fp10_mda = 1
+set fp10_mda = true
 where dmdid in (
   select dmdid
   from dmd_product

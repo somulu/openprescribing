@@ -1,5 +1,5 @@
 update dmd_product
-set dent_f = 1
+set dent_f = true
 where dmdid in (select
   dmdid
 from dmd_product

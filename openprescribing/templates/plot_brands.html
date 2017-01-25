@@ -5,9 +5,48 @@
 
 {% block content %}
 
-<h2>{{ generic_name }} </h2>
+<h2>{{ product.display_name }} </h2>
 
 <img src="{{ request.path }}/graph.png">
+
+<table>
+  <tr>
+    <th>Tariff category</th>
+    <td>{{ product.tariff_category }}</td>
+  </tr>
+  <tr>
+    <th>Imported?</th>
+    <td>{% if product.is_imported %}Yes{% endif %}</td>
+  </tr>
+  <tr>
+    <th>Broken bulk?</th>
+    <td>{% if product.is_broken_bulk %}Yes{% endif %}</td>
+  </tr>
+  <tr>
+    <th>Non-bioequivalence?</th>
+    <td>{% if product.is_non_bioequivalent %}Yes{% endif %}</td>
+  </tr>
+  <tr>
+    <th>Special container?</th>
+    <td>{% if product.is_special_container %}Yes{% endif %}</td>
+  </tr>
+  <tr>
+    <th>Availability restrictions</th>
+    <td>{{ product.availability_restrictions }}</td>
+  </tr>
+  <tr>
+    <th>Non availability</th>
+    <td>{{ product.vmp_non_availability }}</td>
+  </tr>
+  <tr>
+    <th>Prescribability status</th>
+    <td>{{ product.prescribability }}</td>
+  </tr>
+  <tr>
+    <th>Can have personal administration fee?</th>
+    <td>{{ product.can_have_personal_administration_fee }}</td>
+  </tr>
+
 
 {% endblock %}
 
