@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from validators import isAlphaNumeric
 import model_prescribing_units
+from dmd_models import DMDProduct
 
 
 class Section(models.Model):
@@ -590,3 +591,40 @@ class GenericCodeMapping(models.Model):
                                  validators=[isAlphaNumeric], db_index=True)
     to_code = models.CharField(max_length=15,
                                validators=[isAlphaNumeric], db_index=True)
+
+
+class PPQSaving(models.Model):
+    """A PPQ Saving must pertain either to a practice or a CCG.  Records
+    with a blank practice_id are for data at a CCG level.
+
+    """
+    date = models.DateField(db_index=True)
+    bnf_code = models.CharField(max_length=15, validators=[isAlphaNumeric])
+    lowest_decile = models.FloatField()
+    quantity = models.IntegerField()
+    price_per_dose = models.FloatField()
+    possible_savings = models.FloatField()
+    formulation_swap = models.TextField(null=True, blank=True)
+    pct = models.ForeignKey(PCT, null=True, blank=True, db_index=True)
+    practice = models.ForeignKey(
+        Practice, null=True, blank=True, db_index=True)
+
+    @property
+    def product(self):
+        # Sometimes we get more than one DMD+D VMP for a single BNF
+        # code. This is usually where something is available in a
+        # suspension or a solution, or similar clinical equivalencies,
+        # so we just pick the first one.
+        return DMDProduct.objects.filter(
+            bnf_code=self.bnf_code, concept_class=1).first()
+
+    @property
+    def product_name(self):
+        if self.product:
+            name = self.product.display_name
+        else:
+            try:
+                name = Presentation.objects.get(bnf_code=self.bnf_code).name
+            except Presentation.DoesNotExist:
+                name = "n/a"
+        return name

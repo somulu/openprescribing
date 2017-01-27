@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load template_extras %}
+{% load humanize %}
+
+{% block title %}Price-per-dose savings for {{ ccg.name }}{% endblock %}
+{% block active_class %}ccg{% endblock %}
+
+{% block content %}
+
+<h1>Possible monthly savings over £1,000 for {{ccg.name }}</h1>
+
+<table id="price_per_pill" class="table table-condensed">
+  <thead>
+    <tr>
+      <th>
+        presentation
+      </th>
+      <th>
+        possible savings
+      </th>
+      <th>
+        target ppd
+      </th>
+      <th>
+        current ppd
+      </th>
+      <th>
+        quantity
+      </th>
+      <th>
+        formulation swap
+      </th>
+      <th>
+        non-biolequivalence?
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>
+      </th>
+      <td>
+      </td>
+      <td>
+      </td>
+      <td>
+      </td>
+      <td>
+      </td>
+      <td>
+      </td>
+      <td>
+      </td>
+    </tr>
+  </tbody>
+
+</table>
+
+<a href="{% url 'price_per_dose_api' %}&q={{ request.code }}&date={{ request.date }}&format=csv">Download this data</a>
+
+{% endblock %}
+
+{% block extra_js %}
+{% conditional_js 'openprescribing' %}
+<script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.10.13/js/jquery.dataTables.js"></script>
+<script type="text/javascript">
+//  debugger
+$('#price_per_pill').DataTable({
+"ajax": {"url": "/api/1.0/price_per_dose/?q=03Y&date=2016-09-01&format=json", "dataSrc": ""},
+"order": [[1, "desc"]],
+"columns": [
+  {"data": "bnf_code",
+     "render": function(data, type, full, meta) {
+        return '<a href="/data_for_equivalents/'+data+'/'+ full['date'] + '">'+full['name']+'</a>';
+      }
+  },
+  {"data": "possible_savings", render: $.fn.dataTable.render.number(',', '.', 2, '£' )},
+  {"data": "lowest_decile", render: $.fn.dataTable.render.number(',', '.', 2, '£' )},
+  {"data": "price_per_dose", render: $.fn.dataTable.render.number(',', '.', 2, '£' )},
+  {"data": "quantity", render: $.fn.dataTable.render.number(',')},
+  {"data": "formulation_swap"},
+  {"data": "flag_bioequivalence"},
+]
+  }
+  );
+// request unknown paranter '0' for row 0, column 0
+</script>
+{% endblock %}

@@ -7,6 +7,7 @@ import views_org_codes
 import views_org_details
 import views_org_location
 import views_measures
+import views_labs
 
 
 urlpatterns = [
@@ -14,6 +15,8 @@ urlpatterns = [
         name='total_spending'),
     url(r'^spending_by_ccg/$', views_spending.spending_by_ccg,
         name='spending_by_ccg'),
+    url(r'^price_per_dose/$', views_labs.price_per_dose,
+        name='price_per_dose_api'),
     url(r'^spending_by_practice/$', views_spending.spending_by_practice,
         name='spending_by_practice'),
     url(r'^measure/$', views_measures.measure_global,

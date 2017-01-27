@@ -13,7 +13,6 @@
     <title>{% block title %}{% endblock %} | OpenPrescribing</title>
     <script src="https://use.typekit.net/hkz3kmo.js"></script>
     <script>try{Typekit.load({ async: true });}catch(e){}</script>
-
     {% if not debug %}
     <script>
     (function(_,e,rr,s){_errs=[s];var c=_.onerror;_.onerror=function(){var a=arguments;_errs.push(a);
@@ -26,6 +25,7 @@
 
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha256-MfvZlkHCEqatNoGiOXveE8FIwMzZg4W85qfrfIFBfYc=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css" >
     <link href="{% static 'css/index.css' %}?q=1234567" rel="stylesheet">
 
     <link rel="icon" href="/static/img/favicon.png?2">
@@ -166,4 +166,3 @@
 
   </body>
 </html>
-

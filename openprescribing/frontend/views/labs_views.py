@@ -3,22 +3,35 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# Use thread-safe graphical backend for matplotlib. See
-# http://matplotlib.org/faq/howto_faq.html#matplotlib-in-a-web-application-server
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 
 from frontend.dmd_models import DMDProduct
 from frontend.models import Presentation
+from frontend.models import PCT
+from frontend.models import PPQSaving
+
+
+def price_per_dose(request, code):
+    date = '2016-09-01'
+    ccg = get_object_or_404(PCT, code=code)
+    savings = PPQSaving.objects.filter(pct=code, date=date)
+    context = {
+        'ccg': ccg,
+        'savings': savings,
+        'date': date
+    }
+    return render(request, 'price_per_dose.html', context)
 
 
 def data_for_equivalents(request, code, date):
-    generic_name = ''
+    generic_name = bnf_presentation = ''
     product = DMDProduct.objects.filter(bnf_code=code).first()
-    bnf_presentation = Presentation.objects.get(pk=code)
+    if not product:
+        bnf_presentation = Presentation.objects.get(pk=code)
     context = {
         'generic_name': generic_name,
         'product': product,
@@ -46,12 +59,11 @@ def image_for_equivalents(request, code, date):
             data.append(
                 plt.hist(
                     current['ppq'],
+                    alpha=0.7,
                     bins=len(bin_edges),
                     range=(min(bin_edges),max(bin_edges)),
                     label=name,
-                    histtype='stepfilled',
-                    normed=True,
-                    edgecolor='none'))
+                    normed=False))
 
         plt.legend(bbox_to_anchor=(1,1), loc=2)
         plt.ylabel('probability density')
