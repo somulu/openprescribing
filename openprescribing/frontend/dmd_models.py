@@ -9,57 +9,62 @@ import model_prescribing_units
 
 class AvailabalityRestriction(models.Model):
     cd = models.IntegerField(primary_key=True)
-    desc = models.CharField()
+    desc = models.CharField(max_length=50)
 
     def __str__(self):
         return self.desc
 
     class Meta:
         db_table = 'dmd_lookup_availability_restriction'
+        managed = False
 
 
 class Prescribability(models.Model):
     cd = models.IntegerField(primary_key=True)
-    desc = models.CharField()
+    desc = models.CharField(max_length=50)
 
     def __str__(self):
         return self.desc
 
     class Meta:
         db_table = 'dmd_lookup_virtual_product_pres_status'
+        managed = False
 
 
 class VMPNonAvailability(models.Model):
     cd = models.IntegerField(primary_key=True)
-    desc = models.CharField()
+    desc = models.CharField(max_length=50)
 
     def __str__(self):
         return self.desc
 
     class Meta:
         db_table = 'dmd_lookup_virtual_product_non_avail'
+        managed = False
 
 
 class ControlledDrugCategory(models.Model):
     cd = models.IntegerField(primary_key=True)
-    desc = models.CharField()
+    desc = models.CharField(max_length=50)
 
     def __str__(self):
         return self.desc
 
     class Meta:
         db_table = 'dmd_lookup_control_drug_category'
+        managed = False
 
 
 class TariffCategory(models.Model):
     cd = models.IntegerField(primary_key=True)
-    desc = models.CharField()
+    desc = models.CharField(max_length=50)
 
     def __str__(self):
         return self.desc
 
     class Meta:
         db_table = 'dmd_lookup_dt_payment_category'
+        managed = False
 
 
 class DMDProduct(models.Model):
@@ -68,8 +73,10 @@ class DMDProduct(models.Model):
     dmdid = models.IntegerField(primary_key=True)
     bnf_code = models.CharField(max_length=15, null=True, db_index=True)
     vpid = models.IntegerField(primary_key=True)  # could become foreign key
-    display_name = models.CharField()
-    ema = models.CharField()
+    display_name = models.CharField(max_length=40)
+    # requiring additional monitoring in accordance with the European
+    # Medicines Agency Additional Monitoring Scheme
+    ema = models.CharField(max_length=15)
     prescribability = models.ForeignKey(
         Prescribability, db_column='pres_statcd')
     availability_restrictions = models.ForeignKey(
@@ -78,6 +85,8 @@ class DMDProduct(models.Model):
         VMPNonAvailability, db_column='non_availcd')
     # 1 = VMP, 2 = AMP
     concept_class = models.IntegerField(primary_key=True)
+    # 1 = Generic, 2 = brand, 3 = Mannufactured Generic
+    product_type = models.IntegerField()
     # in the nurse prescribers' formulary?
     is_in_nurse_formulary = models.BooleanField(db_column='nurse_f')
     is_in_dentist_formulary = models.BooleanField(db_column='dent_f')
@@ -99,7 +108,7 @@ class DMDProduct(models.Model):
     is_borderline_substance = models.BooleanField(db_column='acbs')
     has_assorted_flavours = models.BooleanField(db_column='assort_flav')
     controlled_drug_category = models.ForeignKey(
-        ControlledDrugCategory, db_column='non_availcd')
+        ControlledDrugCategory, db_column='catcd')
     tariff_category = models.ForeignKey(
         TariffCategory, db_column='tariff_category')
     is_imported = models.BooleanField(db_column='flag_imported')
@@ -109,8 +118,10 @@ class DMDProduct(models.Model):
     is_special_container = models.BooleanField(
         db_column='flag_special_containers')
 
+
     class Meta:
         db_table = 'dmd_product'
+        managed = False
 
     def __str__(self):
         return self.display_name
