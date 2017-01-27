@@ -133,6 +133,23 @@ Run migrations:
 
     python manage.py migrate
 
+## Sandbox data
+
+You can copy everything from the production server. However, the prescrbing table is probably too big. To get a sample of that, you can run something like the following on production (this example grabs 1% of the September 2016 data):
+
+    copy (
+    SELECT
+      *
+    FROM
+      frontend_prescription_201609 TABLESAMPLE SYSTEM (1)) TO '/tmp/sample' WITH binary;
+
+You can then import this data locally using `pg_restore`:
+
+    copy frontend_prescription_201609 from '/tmp/sample' WITH BINARY;
+
+
+This does require you to have all associated tables (BNF codes, practices etc) up-to-date.
+
 # Run tests
 
 Run Django and JavaScript tests:
