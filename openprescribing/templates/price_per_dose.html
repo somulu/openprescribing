@@ -56,7 +56,7 @@
 
 </table>
 
-<a href="{% url 'price_per_dose_api' %}&q={{ request.code }}&date={{ request.date }}&format=csv">Download this data</a>
+<a href="{% url 'price_per_dose_api' %}?q={{ ccg.code }}&date={{ date }}&format=csv">Download this data</a>
 
 {% endblock %}
 
