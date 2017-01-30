@@ -11,7 +11,18 @@
   <h2>{{ bnf_presentation.name }}</h2>
 {% endif %}
 
-<img src="{{ request.path }}/graph.png">
+ <img src="{{ request.path }}/graph.png?normed={{request.GET.normed}}" width="949" height="542">
+
+<hr>
+
+
+{% if request.GET.normed %}
+Showing relative density. <a class="" href="?{% url_toggle request 'normed' %}">Show absolute numbers</a> instead.
+{% else %}
+Showing absolute numbers.  <a class="" href="?{% url_toggle request 'normed' %}">Show relative density</a> instead.
+{% endif %}
+<hr>
+
 
 {% if product %}
 <table class="table table-condensed">
@@ -43,7 +54,7 @@
 
 {% else %}
 
-Extended DMD information not available for this presentation.
+Extended information from dm+d not available for this presentation.
 
 {% endif %}
 

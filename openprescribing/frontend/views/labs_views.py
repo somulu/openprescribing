@@ -50,23 +50,26 @@ def image_for_equivalents(request, code, date):
     if len(df) > 0:
         df['ppq'] = df['actual_cost'] / df['quantity']
         data = []
+        normed = request.GET.get('normed', False)
         hist, bin_edges = np.histogram(df['ppq'])
         ordered = df.groupby('presentation_name')['ppq'].aggregate({'mean_ppq': 'mean'}).sort_values('mean_ppq').index
         for name in ordered:
             current = df[df.presentation_name == name]
             if hide_generic and current.iloc[0].presentation_code[9:11] == 'AA':
                 continue
-            data.append(
-                plt.hist(
-                    current['ppq'],
-                    alpha=0.7,
-                    bins=len(bin_edges),
-                    range=(min(bin_edges),max(bin_edges)),
-                    label=name,
-                    normed=False))
-
-        plt.legend(bbox_to_anchor=(1,1), loc=2)
-        plt.ylabel('probability density')
+            data.append(current['ppq'])
+        plt.hist(
+            data,
+            alpha=0.7,
+            stacked=True,
+            bins=len(bin_edges),
+            range=(min(bin_edges),max(bin_edges)),
+            normed=normed)
+        plt.legend(list(ordered), bbox_to_anchor=(1,1), loc=2)
+        if normed:
+            plt.ylabel('probability density')
+        else:
+            plt.ylabel('count')
         plt.xlabel('price per quantity')
         if hide_generic:
             plt.title("Price per quantity for brands")
