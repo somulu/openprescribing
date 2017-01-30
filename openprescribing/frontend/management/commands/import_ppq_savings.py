@@ -271,7 +271,8 @@ def run_gbq(sql):
             sql,
             project_id="ebmdatalab",
             verbose=False,
-            dialect='legacy')
+            dialect='legacy',
+            private_key=os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
         return df
     except:
         for n, line in enumerate(sql.split("\n")):
