@@ -50,7 +50,7 @@ def image_for_equivalents(request, code, date):
     if len(df) > 0:
         df['ppq'] = df['actual_cost'] / df['quantity']
         data = []
-        normed = request.GET.get('normed', False)
+        logscale = request.GET.get('logscale', False)
         hist, bin_edges = np.histogram(df['ppq'])
         ordered = df.groupby('presentation_name')['ppq'].aggregate({'mean_ppq': 'mean'}).sort_values('mean_ppq').index
         for name in ordered:
@@ -62,14 +62,13 @@ def image_for_equivalents(request, code, date):
             data,
             alpha=0.7,
             stacked=True,
-            bins=len(bin_edges),
-            range=(min(bin_edges),max(bin_edges)),
-            normed=normed)
+            bins=len(bin_edges) * 2,
+            edgecolor='none',
+            range=(min(bin_edges),max(bin_edges)))
         plt.legend(list(ordered), bbox_to_anchor=(1,1), loc=2)
-        if normed:
-            plt.ylabel('probability density')
-        else:
-            plt.ylabel('count')
+        if logscale:
+            plt.yscale('log', nonposy='clip')
+        plt.ylabel('count')
         plt.xlabel('price per quantity')
         if hide_generic:
             plt.title("Price per quantity for brands")

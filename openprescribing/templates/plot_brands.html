@@ -11,15 +11,15 @@
   <h2>{{ bnf_presentation.name }}</h2>
 {% endif %}
 
- <img src="{{ request.path }}/graph.png?normed={{request.GET.normed}}" width="949" height="542">
+ <img src="{{ request.path }}/graph.png?logscale={{request.GET.logscale}}" width="949" height="542">
 
 <hr>
 
 
-{% if request.GET.normed %}
-Showing relative density. <a class="" href="?{% url_toggle request 'normed' %}">Show absolute numbers</a> instead.
+{% if request.GET.logscale %}
+Showing y-axis with a logarithmic scale. <a class="" href="?{% url_toggle request 'logscale' %}">Show constant scale</a> instead.
 {% else %}
-Showing absolute numbers.  <a class="" href="?{% url_toggle request 'normed' %}">Show relative density</a> instead.
+Showing constant scale.  <a class="" href="?{% url_toggle request 'logscale' %}">Use a logarithmic scale on the y-axis</a> instead, to see brands with low counts more clearly.
 {% endif %}
 <hr>
 
