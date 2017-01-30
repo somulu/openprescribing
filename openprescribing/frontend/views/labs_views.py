@@ -48,16 +48,23 @@ def image_for_equivalents(request, code, date):
     df = pd.read_json(url, orient='records')
     plt.figure(figsize=(12, 8))
     if len(df) > 0:
+        max_labels = 22
         df['ppq'] = df['actual_cost'] / df['quantity']
+        df = df[df.ppq <= df.ppq.quantile(0.99)]
         data = []
         logscale = request.GET.get('logscale', False)
         hist, bin_edges = np.histogram(df['ppq'])
-        ordered = df.groupby('presentation_name')['ppq'].aggregate({'mean_ppq': 'mean'}).sort_values('mean_ppq').index
+        ordered = df.groupby(
+            'presentation_name')['ppq'].aggregate(
+                {'mean_ppq': 'mean'}).sort_values(
+                    'mean_ppq').index
+        sns.set_palette("Paired", min(max_labels, len(ordered)))
         for name in ordered:
             current = df[df.presentation_name == name]
             if hide_generic and current.iloc[0].presentation_code[9:11] == 'AA':
                 continue
-            data.append(current['ppq'])
+            data.append(current.ppq)
+
         plt.hist(
             data,
             alpha=0.7,
@@ -65,7 +72,11 @@ def image_for_equivalents(request, code, date):
             bins=len(bin_edges) * 2,
             edgecolor='none',
             range=(min(bin_edges),max(bin_edges)))
-        plt.legend(list(ordered), bbox_to_anchor=(1,1), loc=2)
+        title =  "Brands"
+        if len(ordered) > max_labels:
+            title += " (%s not shown)" % (len(ordered) - max_labels)
+            ordered = list(ordered[:max_labels])
+        plt.legend(ordered, bbox_to_anchor=(1,1), loc=2, title=title)
         if logscale:
             plt.yscale('log', nonposy='clip')
         plt.ylabel('count')
