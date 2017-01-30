@@ -64,9 +64,8 @@
 {% conditional_js 'openprescribing' %}
 <script type="text/javascript" charset="utf8" src="//cdn.datatables.net/1.10.13/js/jquery.dataTables.js"></script>
 <script type="text/javascript">
-//  debugger
 $('#price_per_pill').DataTable({
-"ajax": {"url": "/api/1.0/price_per_dose/?q=03Y&date=2016-09-01&format=json", "dataSrc": ""},
+"ajax": {"url": "/api/1.0/price_per_dose/?q={{ ccg.code }}&date=2016-09-01&format=json", "dataSrc": ""},
 "order": [[1, "desc"]],
 "columns": [
   {"data": "bnf_code",
