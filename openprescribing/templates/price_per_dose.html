@@ -30,17 +30,12 @@
       <th>
         formulation swap
       </th>
-      <th>
-        non-biolequivalence?
-      </th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <th>
+      <th>Loading...
       </th>
-      <td>
-      </td>
       <td>
       </td>
       <td>
@@ -69,8 +64,13 @@ $('#price_per_pill').DataTable({
 "order": [[1, "desc"]],
 "columns": [
   {"data": "bnf_code",
-     "render": function(data, type, full, meta) {
-        return '<a href="/data_for_equivalents/'+data+'/'+ full['date'] + '">'+full['name']+'</a>';
+    "render": function(data, type, full, meta) {
+                var link = '<a href="/data_for_equivalents/'+data+'/'+ full['date'] + '">'+full['name']+'</a>';
+                if(full['flag_bioequivalence']) {
+                     return '<span class="glyphicon glyphicon-warning-sign" style="color:red"></span>' + link;
+                } else {
+                    return link;
+                }
       }
   },
   {"data": "possible_savings", render: $.fn.dataTable.render.number(',', '.', 2, '£' )},
@@ -78,7 +78,6 @@ $('#price_per_pill').DataTable({
   {"data": "price_per_dose", render: $.fn.dataTable.render.number(',', '.', 2, '£' )},
   {"data": "quantity", render: $.fn.dataTable.render.number(',')},
   {"data": "formulation_swap"},
-  {"data": "flag_bioequivalence"},
 ]
   }
   );
