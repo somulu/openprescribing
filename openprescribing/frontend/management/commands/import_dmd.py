@@ -139,7 +139,8 @@ def add_bnf_codes(source_directory):
     from openpyxl import load_workbook
     # 113.831 rows in the spreadsheet
     wb = load_workbook(
-        filename="%s/Converted_DRUG_SNOMED_BNF.xlsx" % source_directory)
+        filename=os.path.join(
+            source_directory, "Converted_DRUG_SNOMED_BNF.xlsx"))
     rows = wb.get_active_sheet().rows
     with connection.cursor() as cursor:
         for row in rows[1:]:  # skip header
@@ -192,5 +193,9 @@ class Command(BaseCommand):
             raise CommandError('Please supply a source directory')
         with transaction.atomic():
             process_datafiles(options['source_directory'])
+        with connection.cursor() as cursor:
+            cursor.execute('ANALYZE VERBOSE')
+        with transaction.atomic():
             create_dmd_product()
+        with transaction.atomic():
             add_bnf_codes(options['source_directory'])
