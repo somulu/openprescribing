@@ -1,3 +1,17 @@
+"""
+
+Useful links:
+
+Data Model:
+http://www.nhsbsa.nhs.uk/PrescriptionServices/Documents/PrescriptionServices/Data_Model_R2_v3.1_May_2015.docx
+
+Editorial Policy for DM+D:
+http://www.nhsbsa.nhs.uk/PrescriptionServices/Documents/PrescriptionServices/Editorial_Policy_R2_v3.2_May_2016.docx
+
+Some Django software that does a cleaner, Django-pure job of what we're doing here (didn't find it until it was too late):
+https://github.com/FiviumAustralia/MedChecker/blob/master/medchecker/medicine/management/commands/loaddm%2Bd.py
+"""
+
 from lxml import etree
 import glob
 import os
