@@ -50,7 +50,7 @@ def image_for_equivalents(request, code, date):
     df = pd.read_json(url, orient='records')
     plt.figure(figsize=(12, 8))
     if len(df) > 0:
-        max_labels = 22
+        max_labels = 20
         df['ppq'] = df['actual_cost'] / df['quantity']
         df = df[df.ppq <= df.ppq.quantile(0.99)]
         data = []
@@ -60,7 +60,7 @@ def image_for_equivalents(request, code, date):
             'presentation_name')['ppq'].aggregate(
                 {'mean_ppq': 'mean'}).sort_values(
                     'mean_ppq').index
-        sns.set_palette("Paired", min(max_labels, len(ordered)))
+        sns.set_palette("cubehelix", len(ordered))
         for name in ordered:
             current = df[df.presentation_name == name]
             if hide_generic and current.iloc[0].presentation_code[9:11] == 'AA':
@@ -76,7 +76,7 @@ def image_for_equivalents(request, code, date):
             range=(min(bin_edges),max(bin_edges)))
         title =  "Brands"
         if len(ordered) > max_labels:
-            title += " (%s not shown)" % (len(ordered) - max_labels)
+            title += " (cheapest labels only; %s labels not shown)" % (len(ordered) - max_labels)
             ordered = list(ordered[:max_labels])
         plt.legend(ordered, bbox_to_anchor=(1,1), loc=2, title=title)
         if logscale:
