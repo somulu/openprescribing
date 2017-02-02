@@ -32,10 +32,12 @@ def data_for_equivalents(request, code, date):
     product = DMDProduct.objects.filter(bnf_code=code).first()
     if not product:
         bnf_presentation = Presentation.objects.get(pk=code)
+
     context = {
         'generic_name': generic_name,
         'product': product,
-        'bnf_presentation': bnf_presentation
+        'bnf_presentation': bnf_presentation,
+        'date': date
     }
     return render(request, 'plot_brands.html', context)
 

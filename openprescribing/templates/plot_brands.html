@@ -5,11 +5,16 @@
 
 {% block content %}
 
+<h2>
 {% if product %}
-  <h2>{{ product.display_name }}</h2>
+Cost per dose for all prescriptions in England for items equivalent to
+  {{ product.display_name }}
 {% else %}
-  <h2>{{ bnf_presentation.name }}</h2>
+  {{ bnf_presentation.name }}
 {% endif %}
+</h2>
+<h3>
+as of {{ date }}</h3>
 
  <img id="ppq-chart" width="949" height="542">
 
