@@ -12,12 +12,26 @@ class NotValid(APIException):
 
 @api_view(['GET'])
 def price_per_dose(request, format=None):
-    code = request.query_params.get('q')
+    entity_code = request.query_params.get('entity_code', None)
     date = request.query_params.get('date')
+    bnf_code = request.query_params.get('bnf_code', None)
+    if not (entity_code or bnf_code):
+        raise NotValid("You must supply an entity code or a bnf_code")
+
+    query = {'date': date}
+    filename = date
+    if entity_code:
+        filename += "-%s" % entity_code
+        if len(entity_code) == 3:
+            query['pct'] = entity_code
+            query['practice__isnull'] = True
+        else:
+            query['practice'] = entity_code
+    if bnf_code:
+        filename += "-%s" % bnf_code
+        query['bnf_code'] = bnf_code
     savings = []
-    # We return the savings.
-    # Somehow in this data we end up with codes like 0601060D0AAA0A0 which does not exist.
-    for x in PPQSaving.objects.filter(pct=code, date=date):
+    for x in PPQSaving.objects.filter(**query):
         d = model_to_dict(x)
         d['name'] = x.product_name
         d['flag_bioequivalence'] = getattr(
@@ -25,6 +39,6 @@ def price_per_dose(request, format=None):
         savings.append(d)
     response = Response(savings)
     if request.accepted_renderer.format == 'csv':
-        filename = "%s-%s-ppd.csv" % (code, date)
+        filename = "%s-ppd.csv" % (filename, date)
         response['content-disposition'] = "attachment; filename=%s" % filename
     return response

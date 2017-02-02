@@ -599,7 +599,8 @@ class PPQSaving(models.Model):
 
     """
     date = models.DateField(db_index=True)
-    bnf_code = models.CharField(max_length=15, validators=[isAlphaNumeric])
+    bnf_code = models.CharField(
+        max_length=15, validators=[isAlphaNumeric], db_index=True)
     lowest_decile = models.FloatField()
     quantity = models.IntegerField()
     price_per_dose = models.FloatField()

@@ -309,17 +309,21 @@ class Command(BaseCommand):
             PPQSaving.objects.filter(date=date).delete()
             for entity_type, min_saving in [('pct', 1000), ('practice', 50)]:
                 result = get_savings(
-                    group_by=entity_type, month=date, limit=0, min_saving=1000)
+                    group_by=entity_type,
+                    month=date,
+                    limit=0,
+                    min_saving=min_saving)
                 for row in result.itertuples():
                     asdict = row._asdict()
-                    PPQSaving.objects.create(
-                        date=date,
-                        bnf_code=asdict['Index'],
-                        lowest_decile=asdict['lowest_decile'],
-                        quantity=asdict['quantity'],
-                        price_per_dose=asdict['price_per_dose'],
-                        possible_savings=asdict['possible_savings'],
-                        formulation_swap=asdict['formulation_swap'] or None,
-                        pct_id=asdict.get('pct', None),
-                        practice_id=asdict.get('practice', None)
-                    )
+                    if asdict['price_per_dose']:
+                        PPQSaving.objects.create(
+                            date=date,
+                            bnf_code=asdict['Index'],
+                            lowest_decile=asdict['lowest_decile'],
+                            quantity=asdict['quantity'],
+                            price_per_dose=asdict['price_per_dose'],
+                            possible_savings=asdict['possible_savings'],
+                            formulation_swap=asdict['formulation_swap'] or None,
+                            pct_id=asdict.get('pct', None),
+                            practice_id=asdict.get('practice', None)
+                        )
