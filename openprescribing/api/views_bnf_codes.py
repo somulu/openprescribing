@@ -71,7 +71,7 @@ def data_for_equivalents(request, format=None):
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT presentation_code, presentation_name, "
-            "quantity, net_cost "
+            "quantity, actual_cost "
             "FROM frontend_prescription "
             "WHERE processing_date = %s "
             + conditions +
