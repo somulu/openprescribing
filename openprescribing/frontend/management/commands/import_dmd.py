@@ -29,6 +29,13 @@ PRIMARY_KEYS = {
     'VMPP': 'VPPID'
 }
 
+EXTRA_INDEXES = [
+    'parallel_import',
+    'lic_authcd',
+    'pres_statcd',
+    'discdt'
+]
+
 PG_TYPE_MAP = {
     'xs:date': 'date',
     'xs:string': 'text',
@@ -48,7 +55,8 @@ def create_table(info):
             row_sql = '"%s" %s' % (name, coltype)
             if name == PRIMARY_KEYS.get(info['table_name'], ''):
                 row_sql += " PRIMARY KEY"
-            elif any([name in x for x in PRIMARY_KEYS.values()]):
+            elif any([name in x
+                      for x in PRIMARY_KEYS.values() + EXTRA_INDEXES]):
                 indexes.append(name)
             cols.append(row_sql)
         sql += ', '.join(cols)
@@ -74,8 +82,20 @@ def insert_row(cursor, table_info, row_data):
 
 def get_table_info(source_directory, schema_names):
     table_prefix = "dmd_"
+    # We manually set up GTIN
     all_tables = {}
     for schema_name in schema_names:
+        if 'gtin' in schema_name:
+            all_tables['dmd_gtin'] = {
+                'table_name': 'dmd_gtin',
+                'columns': (
+                    ('appid', 'bigint'),
+                    ('startdt', 'date'),
+                    ('enddt', 'date'),
+                    ('gtin', 'text'),
+                )
+            }
+            continue
         xmlschema_doc = etree.parse("%s/%s" % (source_directory, schema_name))
         ns = {"xs": "http://www.w3.org/2001/XMLSchema"}
         root = xmlschema_doc.getroot()
@@ -168,28 +188,52 @@ def add_bnf_codes(source_directory):
                 print "When adding BNF codes, could not find", snomed_code
 
 
+def process_gtin(cursor, f):
+    doc = etree.parse(f)
+    root = doc.getroot()
+    rows = root.findall(".//AMPP")
+    table_info = {'table_name': 'dmd_gtin'}
+    for row in rows:
+        appid = row.find('AMPPID').text
+        start_date = row.find('GTINDATA/STARTDT').text
+        end_date = row.find('GTINDATA/ENDDT')
+        if end_date is not None:
+            end_date = end_date.text
+        gtin = row.find('GTINDATA/GTIN').text
+        row_data = [
+            ('appid', appid),
+            ('startdt', start_date),
+            ('enddt', end_date),
+            ('gtin', gtin)
+        ]
+        insert_row(cursor, table_info, row_data)
+
+
 def process_datafiles(source_directory):
     create_all_tables(source_directory)
     to_process = glob.glob("%s/*xml" % source_directory)
     with connection.cursor() as cursor:
         for f in to_process:
             print "Processing %s" % f
-            doc = etree.parse(f)
-            root = doc.getroot()
-            ns = ('{http://www.w3.org/2001/XMLSchema-instance}'
-                  'noNamespaceSchemaLocation')
-            schema = root.attrib[ns]
-            table_info = get_table_info(source_directory, [schema])
-            for table_name, info in table_info.items():
-                rows = root.findall(".//%s" % info['node_name'])
-                for row in rows:
-                    row_data = []
-                    for name, col_type in info['columns']:
-                        val = row.find(name)
-                        if val is not None:
-                            val = val.text
-                        row_data.append((name, val))
-                    insert_row(cursor, info, row_data)
+            if 'gtin' in f:
+                process_gtin(cursor, f)
+            else:
+                doc = etree.parse(f)
+                root = doc.getroot()
+                ns = ('{http://www.w3.org/2001/XMLSchema-instance}'
+                      'noNamespaceSchemaLocation')
+                schema = root.attrib[ns]
+                table_info = get_table_info(source_directory, [schema])
+                for table_name, info in table_info.items():
+                    rows = root.findall(".//%s" % info['node_name'])
+                    for row in rows:
+                        row_data = []
+                        for name, col_type in info['columns']:
+                            val = row.find(name)
+                            if val is not None:
+                                val = val.text
+                            row_data.append((name, val))
+                        insert_row(cursor, info, row_data)
 
 
 class Command(BaseCommand):
@@ -207,9 +251,9 @@ class Command(BaseCommand):
             raise CommandError('Please supply a source directory')
         with transaction.atomic():
             process_datafiles(options['source_directory'])
-        with connection.cursor() as cursor:
-            cursor.execute('ANALYZE VERBOSE')
-        with transaction.atomic():
-            create_dmd_product()
-        with transaction.atomic():
-            add_bnf_codes(options['source_directory'])
+        #with connection.cursor() as cursor:
+        #    cursor.execute('ANALYZE VERBOSE')
+        #with transaction.atomic():
+        #    create_dmd_product()
+        #with transaction.atomic():
+        #    add_bnf_codes(options['source_directory'])
