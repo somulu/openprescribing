@@ -14,6 +14,9 @@ urlpatterns = [
     url(r'^api/$', TemplateView.as_view(template_name='api.html'), name="api"),
     url(r'^about/$', TemplateView.as_view(template_name='about.html'),
         name="about"),
+    url(r'^black_triangle/$', TemplateView.as_view(
+        template_name='black_triangle.html'),
+        name="black_triangle"),
     url(r'^faq/$', TemplateView.as_view(template_name='faq.html'),
         name="faq"),
     url(r'^price-per-unit-faq/$', TemplateView.as_view(

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load template_extras %}
+
+{% block title %}About Black Triangle experimental measures{% endblock %}
+{% block active_class %}more{% endblock %}
+
+{% block content %}
+
+<h2>Background</h2>
+
+<p>
+This is an experimental measure, to be used by experts with caution. Black triangle drugs as classified by the EMA are treatments that present higher risks, and are therefore under additional monitoring by regulatory authorities. Treatments containing new active substances are “black triangle” for their first five years, but treatments may also be added to the list for other reasons, such as a new risk signal. </p>
+
+<p>It is - absolutely - not bad to prescribe black triangle drugs. There are often very good reasons to prescribe a new treatment when it is fresh onto the market: for example, a patient may not be responding to existing treatments; or the new treatment may have good quality evidence, showing that it is much more effective than existing treatments. However, these drugs generally have less long-term safety data. The “black triangle” classification means, therefore, that patients are to be monitored more closely. In addition, healthcare practitioners prescribing “black triangle” treatments are expected to have a lower threshold for notifying the medicines regulator of suspected side effects, via the Yellow Card system. You can <a href="https://www.gov.uk/guidance/the-yellow-card-scheme-guidance-for-healthcare-professionals#black-triangle-scheme">read more about black triangle drugs and the Yellow Card system here</a>.</p>
+<p>
+We therefore set out to create a measure which describes whether a practice or CCG is prescribing more black triangle treatments than their peers. This is not a simple task: what follows is a more technical explanation.
+</p>
+
+<h2>Technical Details</h2>
+
+<p>
+We identified a subset of black triangle drugs which appear in the
+EMA list (Sept 2016 and/or Jan 2017) and also appear in the
+prescribing data as new proprietary drugs. The vast majority of
+prescribing volume was concentrated in two areas: Sections 6.1
+(Insulin and antidiabetic drugs) and 3.1 (Bronchodilators). This
+presents an interesting analytic challenge. We could take, for each
+practice or CCG, the number of black triangle prescriptions, and
+divide that by the total number of prescriptions. But if we did
+this, then we would incorrectly identify, as high users of black
+triangle drugs, the CCGs or practices prescribing the classes of
+treatment that commonly contain black triangle drugs, rather than
+the black triangle drugs themselves. Anyone prescribing a lot of
+treatments from Sections 6.1 and 3.1 would also be more likely to
+occasionally prescribe a black triangle member of that class.</p>
+
+<p>Instead we calculate an ‘expected’ black triangle value for each
+practice, adjusted for their total prescribing in these sections,
+against which their actual black triangle total can be compared. To do
+this, for each section we calculate the overall proportion of
+prescriptions in these sections which are black triangle, across the
+whole country. This is then multiplied by the total prescriptions for
+each practice, for that section, to give the number of black triangle
+prescriptions we would expect to see. We add these up, across all
+sections to calculate the expected number of black triangle
+prescriptions in each practice, taking account of their prescribing
+volume, and the kinds of treatments they prescrible. Finally, we can
+then compare this against the actual number of black triangle
+prescriptions in their data, to generate a ratio: “observed /
+expected” for that practice, or CCG.</p>
+
+<p>Our analysis is currently limited to the two key sections above
+(6.1 diabetes and 3.1 asthma/COPD), and within these sections we have
+restricted further such that only the black triangle drugs and
+equivalent products are included, which is BNF codes beginning 060101
+or 060102, and 0301 or 0302000V0. You can read the full analytic code
+used for this
+measure <a href="https://github.com/ebmdatalab/Prescribing-of-Black-Triangle-and-Withdrawn-Drugs/issues/3">here</a>. If
+we receive feedback that this experimental technical measure is
+useful, or interesting, then we will devote more resource to
+developing it further. So <a href="mailto:{{ SUPPORT_EMAIL }}"
+class="doorbell-show">let us know if you like it, or have any
+suggestions for new measures</a>.</p>
+
+<h3>Limitations</h3>
+
+<ul>
+  <li>We have only produced measures for COPD/Asthma and Diabetes products; we could develop other categories if there is interest</li>
+  <li>Our list of black triangle products was correct as of Jan 2017, but will become more out of date over time. Further development will be required to maintain the correct list for each new month.</li>
+  <li>Our list of black triangle products will be missing any which have been removed from the black triangle list since 2014. Again, further development can refine this if the measure is considered useful by the prescribing community.</li>
+</ul>
+
+<h3>Feedback</h3>
+
+<p>We welcome all feedback: please contact us at <a href="mailto:{{ SUPPORT_EMAIL }}" class="doorbell-show">{{ SUPPORT_EMAIL }}</a>.</p>
+
+{% endblock %}
+
+{% block extra_js %}
+{% conditional_js 'openprescribing' %}
+{% endblock %}
