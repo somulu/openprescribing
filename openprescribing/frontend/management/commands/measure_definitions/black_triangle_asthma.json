@@ -1,0 +1,26 @@
+{
+  "name": "EXPERIMENTAL: Black Triangle Asthma & COPD drugs",
+  "title": [
+    "Black Triangle prescribing within Asthma and COPD paragraphs"
+  ],
+  "description": [
+    "Ratio of Observed to Expected prescribing of Black Triangle drugs within selected asthma paragraphs"
+  ],
+  "why_it_matters": ["This is an experimental measure, to be used by experts with caution. Black triangle drugs as classified by the EMA are treatments that present higher risks, and are therefore under additional monitoring by regulatory authorities. It is - absolutely - not bad to prescribe black triangle drugs. However, these drugs generally have less long-term safety data. The “black triangle” classification means, therefore, that patients are to be monitored more closely. <a href='/black_triangle/'>Read more</a>"],
+  "numerator_short": "Observed items",
+  "denominator_short": "Expected items",
+  "url": null,
+  "is_percentage": false,
+  "is_cost_based": false,
+  "low_is_good": null,
+  "numerator_columns": [
+    "SUM(bt_items) AS numerator, "
+  ],
+  "numerator_from": "[ebmdatalab:tmp_eu.black_triangle_ratios] ",
+  "numerator_where": ["category = 'Asthma/COPD'"],
+  "denominator_columns": [
+    "SUM(expected_bt_items) AS denominator, "
+  ],
+  "denominator_where": ["category = 'Asthma/COPD'"],
+  "denominator_from": "[ebmdatalab:tmp_eu.black_triangle_ratios] "
+}
