@@ -1,5 +1,5 @@
 {
-  "name": "EXPERIMENTAL: Black Triangle Diabetes drugs (expected items as denom)",
+  "name": "EXPERIMENTAL: Black Triangle Diabetes drugs (total items as denom)",
   "title": [
     "Black Triangle prescribing within selected Diabetes paragraphs"
   ],
@@ -8,19 +8,19 @@
   ],
   "why_it_matters": ["This is an experimental measure, to be used by experts with caution. Black triangle drugs as classified by the EMA are treatments that present higher risks, and are therefore under additional monitoring by regulatory authorities. It is - absolutely - not bad to prescribe black triangle drugs. However, these drugs generally have less long-term safety data. The “black triangle” classification means, therefore, that patients are to be monitored more closely. <a href='/black_triangle/'>Read more</a>"],
   "numerator_short": "Black triangle insulin and anti-diabetic items",
-  "denominator_short": "Expected items based on England-wide mean ratio",
+  "denominator_short": "All insulin and anti-diabetic items",
   "url": null,
   "is_percentage": false,
   "is_cost_based": false,
   "low_is_good": null,
   "numerator_columns": [
-    "SUM(bt_items) AS numerator, "
+    "SUM(items) AS numerator, "
   ],
-  "numerator_from": "[ebmdatalab:tmp_eu.black_triangle_ratios] ",
-  "numerator_where": ["category = 'Diabetes'"],
+  "numerator_from": "[ebmdatalab:hscic.normalised_prescribing_standard] ",
+  "numerator_where": ["SUBSTR( bnf_code,1,11) IN ('0601012AAAA', '0601012AABB', '0601012Z0AA', '0601012Z0BB', '0601023AFAA', '0601023AFBB', '0601023AGAA', '0601023AGBB', '0601023AIAA', '0601023AIBB', '0601023AJAA', '0601023AJBB', '0601023AKAA', '0601023AKBB', '0601023ALAA', '0601023ALBB', '0601023AMAA', '0601023AMBB', '0601023ANAA', '0601023ANBB', '0601023AQAA', '0601023AQBB', '0601023ARAA', '0601023ARBB')"],
   "denominator_columns": [
-    "SUM(expected_bt_items) AS denominator, "
+    "SUM(items) AS denominator, "
   ],
-  "denominator_where": ["category = 'Diabetes'"],
-  "denominator_from": "[ebmdatalab:tmp_eu.black_triangle_ratios] "
+  "denominator_where": ["(bnf_code LIKE '060101%') OR (bnf_code LIKE '060102%')"],
+  "denominator_from": "[ebmdatalab:hscic.normalised_prescribing_standard] "
 }
