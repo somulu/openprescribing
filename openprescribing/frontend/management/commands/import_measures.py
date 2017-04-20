@@ -229,6 +229,13 @@ class MeasureCalculation(object):
         self.fpath = os.path.dirname(__file__)
         self.measure_id = measure_id
         self.measure = parse_measures()[measure_id]
+        datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        if 'start_date' in self.measure:
+            start_date = datetime.datetime.strptime(
+                self.measure['start_date'], "%Y-%m-%d")
+        if 'end_date' in self.measure:
+            end_date = datetime.datetime.strptime(
+                self.measure['end_date'], "%Y-%m-%d")
         self.start_date = start_date
         self.end_date = end_date
         self.under_test = under_test
