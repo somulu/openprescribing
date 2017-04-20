@@ -17,10 +17,10 @@
     "SUM(items) AS numerator, "
   ],
   "numerator_from": "[ebmdatalab:hscic.normalised_prescribing_standard] ",
-  "numerator_where": ["SUBSTR( bnf_code,1,11) IN ('0301011AAAA', '0301011AABB', '0301011Y0AA', '0301011Y0BB', '0301011Z0BB', '0301020R0AA', '0301020R0BB', '0301020S0AA', '0301020S0BB', '0301020T0AA', '0301020T0BB', '0301020U0AA', '0301020U0BB', '0301040U0AA', '0301040U0BB', '0301040U0BC' , '0301040V0AA', '0301040V0BB', '0301040W0AA', '0301040W0BB', '0301040X0AA', '0301040X0BB', '0301040Y0AA', '0301040Y0BB', '0302000N0AA', '0302000N0BE', '0302000V0AA', '0302000V0BB')"],
+  "numerator_where": ["(SUBSTR( bnf_code,1,11) IN ('0301011AAAA', '0301011AABB', '0301011Y0AA', '0301011Y0BB', '0301011Z0BB', '0301020R0AA', '0301020R0BB', '0301020S0AA', '0301020S0BB', '0301020T0AA', '0301020T0BB', '0301020U0AA', '0301020U0BB', '0301040U0AA', '0301040U0BB', '0301040U0BC' , '0301040V0AA', '0301040V0BB', '0301040W0AA', '0301040W0BB', '0301040X0AA', '0301040X0BB', '0301040Y0AA', '0301040Y0BB', '0302000N0AA', '0302000N0BE', '0302000V0AA', '0302000V0BB')) AND (month >= TIMESTAMP('2014-01-01'))"],
   "denominator_columns": [
     "SUM(items) AS denominator, "
   ],
-  "denominator_where": ["(bnf_code LIKE '0301%') OR (bnf_code LIKE '0302000V0%') OR (bnf_code LIKE '0302000N0%')"],
+  "denominator_where": ["((bnf_code LIKE '0301%') OR (bnf_code LIKE '0302000V0%') OR (bnf_code LIKE '0302000N0%')) AND (month >= TIMESTAMP('2014-01-01'))"],
   "denominator_from": "[ebmdatalab:hscic.normalised_prescribing_standard] "
 }
