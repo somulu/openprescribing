@@ -17,10 +17,10 @@
     "SUM(items) AS numerator, "
   ],
   "numerator_from": "[ebmdatalab:hscic.normalised_prescribing_standard] ",
-  "numerator_where": ["SUBSTR( bnf_code,1,11) IN ('0601012AAAA', '0601012AABB', '0601012Z0AA', '0601012Z0BB', '0601023AFAA', '0601023AFBB', '0601023AGAA', '0601023AGBB', '0601023AIAA', '0601023AIBB', '0601023AJAA', '0601023AJBB', '0601023AKAA', '0601023AKBB', '0601023ALAA', '0601023ALBB', '0601023AMAA', '0601023AMBB', '0601023ANAA', '0601023ANBB', '0601023AQAA', '0601023AQBB', '0601023ARAA', '0601023ARBB')"],
+  "numerator_where": ["(SUBSTR( bnf_code,1,11) IN ('0601012AAAA', '0601012AABB', '0601012Z0AA', '0601012Z0BB', '0601023AFAA', '0601023AFBB', '0601023AGAA', '0601023AGBB', '0601023AIAA', '0601023AIBB', '0601023AJAA', '0601023AJBB', '0601023AKAA', '0601023AKBB', '0601023ALAA', '0601023ALBB', '0601023AMAA', '0601023AMBB', '0601023ANAA', '0601023ANBB', '0601023AQAA', '0601023AQBB', '0601023ARAA', '0601023ARBB')) AND (month >= TIMESTAMP('2014-01-01'))"],
   "denominator_columns": [
     "SUM(items) AS denominator, "
   ],
-  "denominator_where": ["(bnf_code LIKE '060101%') OR (bnf_code LIKE '060102%')"],
+  "denominator_where": ["((bnf_code LIKE '060101%') OR (bnf_code LIKE '060102%')) AND (month >= TIMESTAMP('2014-01-01'))"],
   "denominator_from": "[ebmdatalab:hscic.normalised_prescribing_standard] "
 }
