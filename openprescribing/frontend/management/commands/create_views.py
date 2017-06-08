@@ -87,9 +87,9 @@ class Command(BaseCommand):
             fieldnames = f.readline().split(',')
             with connection.cursor() as cursor:
                 with utils.constraint_and_index_reconstructor(tablename):
-                    self.log("Deleting from table...")
+                    self.log("Deleting from table %s..." % tablename)
                     cursor.execute("DELETE FROM %s" % tablename)
-                    self.log("Copying CSV to postgres...")
+                    self.log("Copying CSV to %s..." % tablename)
                     try:
                         cursor.copy_expert(copy_str % (
                             tablename, ','.join(fieldnames)), f)
@@ -116,24 +116,28 @@ def query_and_export(dataset, view, prescribing_date):
         tablename = "vw__%s" % os.path.basename(view).replace('.sql', '')
         gzip_destination = "gs://ebmdatalab/%s/views/%s-*.csv.gz" % (
             dataset, tablename)
+        logger.info("Generating view %s and saving to %s" % (
+            tablename, gzip_destination))
         # We do a string replacement here as we don't know how many
         # times a dataset substitution token (i.e. `{{dataset}}') will
         # appear in each SQL template. And we can't use new-style
         # formatting as some of the SQL has braces in.
         sql = open(view, "r").read().replace('{{dataset}}', dataset)
         sql = sql.replace("{{this_month}}", prescribing_date)
-        print sql
+        logger.info("Running SQL for %s: %s" % (tablename, sql))
         # Execute query and wait
         job_id = query_and_return(
             project_id, dataset, tablename, sql)
-        logger.info("Awaiting query completion")
+        logger.info("Awaiting query completion for %s" % tablename)
         wait_for_job(job_id, project_id)
-
+        # Delete existing GCS files
+        delete_from_gcs(gzip_destination)
         # Export to GCS and wait
         job_id = export_to_gzip(
             project_id, dataset, tablename, gzip_destination)
-        logger.info("Awaiting export completion")
+        logger.info("Awaiting export completion for %s" % tablename)
         wait_for_job(job_id, project_id)
+        logger.info("View generation complete for %s" % tablename)
         return (tablename, gzip_destination)
     except Exception:
         # Log the formatted error, because the multiprocessing pool
@@ -149,12 +153,12 @@ def download_and_unzip(gcs_uri):
     for i, f in enumerate(download_from_gcs(gcs_uri)):
         # Unzip
         if i == 0:
-            cmd = "zcat -f %s >> %s"
+            cmd = "gunzip -c -f %s >> %s"
         else:
             # When the file is split into several shards in GCS, it
             # puts a header on every file, so we have to skip that
             # header on all except the first shard.
-            cmd = "zcat -f %s | tail -n +2 >> %s"
+            cmd = "gunzip -c -f %s | tail -n +2 >> %s"
         subprocess.check_call(
             cmd % (f.name, unzipped.name), shell=True)
     return unzipped
@@ -177,6 +181,15 @@ def export_to_gzip(project_id, dataset_id, table_id, destination):
         }
     }
     return insert_job(project_id, payload)
+
+
+def delete_from_gcs(gcs_uri):
+    bucket, blob_name = gcs_uri.replace('gs://', '').split('/', 1)
+    client = storage.Client(project='embdatalab')
+    bucket = client.get_bucket(bucket)
+    prefix = blob_name.split('*')[0]
+    for blob in bucket.list_blobs(prefix=prefix):
+        blob.delete()
 
 
 def download_from_gcs(gcs_uri):
@@ -217,7 +230,7 @@ def query_and_return(project_id, dataset_id, table_id, query):
             }
         }
     }
-    logging.info("Writing to bigquery table %s" % table_id)
+    logger.info("Writing to bigquery table %s" % table_id)
     return insert_job(project_id, payload)
 
 
@@ -246,7 +259,7 @@ def wait_for_job(job_id, project_id):
                     query = str(response['configuration']['query']['query'])
                     for i, l in enumerate(query.split("\n")):
                         # print SQL query with line numbers for debugging
-                        logging.error(
+                        logger.error(
                             error + ":\n" + "{:>3}: {}".format(i + 1, l))
                 raise StandardError(error)
             else:
@@ -263,5 +276,5 @@ def wait_for_job(job_id, project_id):
                              'gb_processed': gb_processed}
     else:
         est_cost = 'n/a'
-    logging.warn("Time %ss, cost $%s" % (elapsed, est_cost))
+    logger.warn("Time %ss, cost $%s" % (elapsed, est_cost))
     return response

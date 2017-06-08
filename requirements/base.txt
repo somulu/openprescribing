@@ -21,5 +21,7 @@ requests-futures
 google-api-python-client==1.5.3
 pip==8.1.2
 setuptools==27.3.0
-ebmdatalab-python==0.0.14
+ebmdatalab-python==0.0.26
+titlecase==0.8.2
+html2text==2016.9.19
 matplotlib==1.5.3

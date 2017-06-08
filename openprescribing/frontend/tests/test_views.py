@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core import mail
 from django.test import TransactionTestCase
 
+from frontend.models import EmailMessage
 from frontend.models import OrgBookmark
 from frontend.models import SearchBookmark
 
@@ -14,7 +15,7 @@ from allauth.account.models import EmailAddress
 
 class TestAlertViews(TransactionTestCase):
     fixtures = ['chemicals', 'sections', 'ccgs',
-                'practices', 'shas', 'prescriptions', 'measures']
+                'practices', 'prescriptions', 'measures']
 
     def _post_org_signup(self, entity_id, email='foo@baz.com'):
         form_data = {'email': email}
@@ -62,10 +63,11 @@ class TestAlertViews(TransactionTestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("about mysearch", mail.outbox[0].body)
 
-    def test_preview_appears_for_admins(self):
-        self._create_user_and_login('a@a.com', is_superuser=True)
-        response = self.client.get('/analyse/')
-        self.assertContains(response, "Preview alert email")
+    def test_search_email_copy_kept(self):
+        self._post_search_signup('stuff', 'mysearch')
+        msg = EmailMessage.objects.first()
+        self.assertIn("about mysearch", msg.message.body)
+        self.assertIn("foo@baz.com", msg.to)
 
     def test_search_bookmark_created(self):
         self.assertEqual(SearchBookmark.objects.count(), 0)
@@ -172,7 +174,7 @@ class TestAlertViews(TransactionTestCase):
         self.assertContains(
             response, "Check your email and click the confirmation link")
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("about prescribing in 1/ST ANDREWS", mail.outbox[0].body)
+        self.assertIn("about prescribing in 1/ST Andrews", mail.outbox[0].body)
 
     def test_practice_bookmark_created(self):
         self.assertEqual(OrgBookmark.objects.count(), 0)
@@ -188,13 +190,13 @@ class TestAlertViews(TransactionTestCase):
         response = self.client.get(confirm_url, follow=True)
         self.assertContains(
             response, "subscribed to monthly alerts about "
-            "<em>prescribing in 1/ST ANDREWS")
+            "<em>prescribing in 1/ST Andrews")
         self.assertTrue(response.context['user'].is_active)
 
 
 class TestFrontendViews(TransactionTestCase):
     fixtures = ['chemicals', 'sections', 'ccgs',
-                'practices', 'shas', 'prescriptions', 'measures']
+                'practices', 'prescriptions', 'measures']
 
     def test_call_view_homepage(self):
         response = self.client.get('')
@@ -205,12 +207,12 @@ class TestFrontendViews(TransactionTestCase):
         with self.settings(DEBUG=False):
             response = self.client.get('')
             doc = pq(response.content)
-            mainjs = doc('script')[-3].attrib['src']
+            mainjs = doc('script')[-2].attrib['src']
             self.assertIn('openprescribing.min.js', mainjs)
         with self.settings(DEBUG=True, INTERNAL_IPS=('127.0.0.1',)):
             response = self.client.get('')
             doc = pq(response.content)
-            mainjs = doc('script')[-3].attrib['src']
+            mainjs = doc('script')[-2].attrib['src']
             self.assertIn('openprescribing.js', mainjs)
 
     def test_call_view_analyse(self):

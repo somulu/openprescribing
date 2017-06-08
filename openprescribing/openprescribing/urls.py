@@ -8,12 +8,16 @@ from frontend.views import labs_views
 
 admin.autodiscover()
 
+handler500 = frontend_views.custom_500
+
 urlpatterns = [
     # Static pages.
     url(r'^$', TemplateView.as_view(template_name='index.html'), name="home"),
     url(r'^api/$', TemplateView.as_view(template_name='api.html'), name="api"),
     url(r'^about/$', TemplateView.as_view(template_name='about.html'),
         name="about"),
+    url(r'^faq/$', TemplateView.as_view(template_name='faq.html'),
+        name="faq"),
     url(r'^caution/$', TemplateView.as_view(template_name='caution.html'),
         name="caution"),
     url(r'^how-to-use/$',
@@ -47,10 +51,6 @@ urlpatterns = [
         RedirectView.as_view(permanent=True,
                              pattern_name='measures_for_one_practice'),
         name='practice'),
-    url(r'^area_team/$', frontend_views.all_area_teams,
-        name='all_area_teams'),
-    url(r'^area_team/(?P<at_code>[A-Z\d]+)/$', frontend_views.area_team,
-        name='area_team'),
     url(r'^measure/$',
         frontend_views.all_measures,
         name='all_measures'),
@@ -77,9 +77,6 @@ urlpatterns = [
     url(r'^bnf/$', frontend_views.all_bnf, name='all_bnf'),
     url(r'^bnf/(?P<section_id>[\d]+)/$', frontend_views.bnf_section,
         name='bnf_section'),
-    url(r'^500/$', frontend_views.test_500_view,
-        name='test_500'),
-
     url(r'^api/1.0/', include('api.urls')),
 
     url(r'^docs/(?P<doc_id>[A-Za-z\d_-]+)/$',

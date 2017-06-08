@@ -1,15 +1,16 @@
 from django.db import connection
-from django.test import TestCase
+from django.test import TransactionTestCase
 
 
-class ApiTestBase(TestCase):
+class ApiTestBase(TransactionTestCase):
     """Base test case that sets up all the fixtures required by any of the
     API tests.
 
     """
     fixtures = ['ccgs', 'practices', 'practice_listsizes', 'products',
                 'presentations', 'sections', 'prescriptions', 'chemicals',
-                'shas', 'importlog', 'generic_code_mapping']
+                'importlog', 'generic_code_mapping']
+
     api_prefix = '/api/1.0'
 
     def setUp(self):

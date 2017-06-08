@@ -1,6 +1,9 @@
 from dateutil.relativedelta import relativedelta
+import os
+import re
 import unittest
 
+from django.test import SimpleTestCase
 from django.test import TestCase
 import base64
 from datetime import datetime
@@ -11,6 +14,8 @@ from threading import Thread
 import requests
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
+from mock import patch
+from mock import MagicMock
 
 from frontend.models import ImportLog
 from frontend.models import Measure
@@ -79,95 +84,87 @@ class IntroTextTest(unittest.TestCase):
                       "are some potential cost savings", msg)
 
 
-class TestRemoveJagged(unittest.TestCase):
-    def _makeSome(self, percentiles):
-        m = Measure(is_percentage=False)
-        return [MeasureValue(percentile=percentile, measure=m)
-                for percentile in percentiles]
+def each_cusum_test(test_cases):
+    """Iterate over tests defined in the input file, validating as we go.
 
-    def _makeSomeWithPercentCalcValues(self, percentiles):
-        m = Measure(is_percentage=True)
-        return [MeasureValue(measure=m,
-                             percentile=percentile,
-                             calc_value=value)
-                for percentile, value in percentiles]
+    It validates as follows:
 
-    def _makeSomeWithNumeratorValues(self, percentiles):
-        m = Measure(is_percentage=False)
-        return [MeasureValue(measure=m, percentile=percentile, numerator=value)
-                for percentile, value in percentiles]
+    One test in the input file is a comment, followed by input data,
+    followed by expected outputs (`d` or `u`), followed by a blank
+    line.
 
-    def test_percentiles_at_extremes_one_extreme_ok(self):
-        vals = [(5, 0.9), (6, 1.0), (4, 0.8)]
-        filtered = bookmark_utils.remove_jagged(
-            self._makeSomeWithPercentCalcValues(vals))
-        self.assertEqual(
-            len(filtered), len(vals))
+    Input data and expected outputs should be left aligned in columns
+    of width 4.
 
-    def test_percentiles_at_extremes_two_extremes_bad(self):
-        vals = [(5, 0.9), (6, 1.0), (4, 0.0)]
-        filtered = bookmark_utils.remove_jagged(
-            self._makeSomeWithPercentCalcValues(vals))
-        self.assertNotEqual(
-            len(filtered), len(vals))
+    """
+    for i in range(0, len(test_cases), 4):
+        # Validate each row first
+        alignment_header = '*'.join(['...'] * 12)
+        comment_msg = "At line %s: %s does not start with #" % (
+            i, test_cases[i])
+        assert test_cases[i].startswith("#"), comment_msg
+        test_name = test_cases[i].strip()
+        alignment_msg = ("%s: Every column must be three wide "
+                         "followed by a space: \n%s\n%s" %
+                         (test_name, alignment_header, test_cases[i+1]))
+        assert test_cases[i+1][3::4].strip() == '', alignment_msg
+        directions = [n for n, ltr in enumerate(test_cases[i+2])
+                      if ltr in ('u', 'd')]
+        alignment_msg = ("%s: Every column must be three wide followed "
+                         "by a space:\n%s\n%s" % (
+                               test_name,
+                               alignment_header,
+                               str(test_cases[i+2])))
+        assert sum([x % 4 for x in directions]) == 0, alignment_msg
+        data = [round(int(x)/100.0, 2) if x.strip() else None
+                for x in re.findall('(   |\d+ {0,2}) ?', test_cases[i+1])]
+        expected = test_cases[i+2].rstrip()
+        yield {'name': test_name, 'data': data, 'expected': expected}
 
-    def test_non_percentiles_extremes(self):
-        vals = [5, 5, 5, 5, 5, 5, 5, 0, 0]
-        filtered = bookmark_utils.remove_jagged(
-            self._makeSome(vals))
-        self.assertNotEqual(
-            len(filtered), len(vals))
 
-    def test_non_percentiles_no_low_numerators(self):
-        vals = [(5, 30), (6, 20), (4, 30)]
-        filtered = bookmark_utils.remove_jagged(
-            self._makeSomeWithNumeratorValues(vals))
-        self.assertEqual(
-            len(filtered), len(vals))
+def extract_percentiles_for_alerts(result):
+    neg = result['alert_percentile_neg']
+    pos = result['alert_percentile_pos']
+    combined = []
+    assert len(neg) == len(pos)
+    for i, val in enumerate(neg):
+        if val:
+            assert not pos[i]
+            combined.append('d')
+        elif pos[i]:
+            combined.append('u')
+        else:
+            combined.append(' ')
+    return "   ".join(combined).rstrip()
 
-    def test_non_percentiles_with_low_numerators(self):
-        vals = [(5, 10), (6, 12), (4, 30)]
-        filtered = bookmark_utils.remove_jagged(
-            self._makeSomeWithNumeratorValues(vals))
-        self.assertNotEqual(
-            len(filtered), len(vals))
 
-    def test_very_jagged(self):
-        vals = [1, 100, 1, 100, 1, 50, 40, 100]
-        filtered = bookmark_utils.remove_jagged(self._makeSome(vals))
-        self.assertNotEqual(
-            len(filtered), len(vals))
+class TestCUSUM(unittest.TestCase):
+    def test_various_data(self):
+        """Test alert logic against data in the specified fixture.
 
-    @unittest.skip('should be fixed by better algorithm')
-    def test_low_not_jagged(self):
-        vals = [0, 1, 0, 1, 0, 1, 0, 1]
-        filtered = bookmark_utils.remove_jagged(self._makeSome(vals))
-        self.assertEqual(
-            len(filtered), len(vals))
+        Note that the input data is actually divided by 100 before
+        being input to the function under test. This slightly
+        unfortunate design comes from wanting to exercise a couple of
+        interesting edge cases without making the tests less readable
+        by introducing extra floating points to the test input
+        fixture.
 
-    def test_low_not_jagged_not_zero(self):
-        vals = [1, 2, 1, 2, 1, 2, 1, 2]
-        filtered = bookmark_utils.remove_jagged(self._makeSome(vals))
-        self.assertEqual(
-            len(filtered), len(vals))
-
-    def test_quite_jagged(self):
-        vals = [0, 100, 0, 50, 10, 20, 100]
-        filtered = bookmark_utils.remove_jagged(self._makeSome(vals))
-        self.assertNotEqual(
-            len(filtered), len(vals))
-
-    def test_slightly_jagged(self):
-        vals = [30, 70, 50, 60, 50, 40, 10]
-        filtered = bookmark_utils.remove_jagged(self._makeSome(vals))
-        self.assertEqual(
-            len(filtered), len(vals))
-
-    def test_not_at_all_jagged(self):
-        vals = [40, 50, 60, 70, 80]
-        filtered = bookmark_utils.remove_jagged(self._makeSome(vals))
-        self.assertEqual(
-            len(filtered), len(vals))
+        """
+        with open(
+                settings.SITE_ROOT + '/frontend/tests/fixtures/'
+                'alert_test_cases.txt', 'rb') as expected:
+            test_cases = expected.readlines()
+        for test in each_cusum_test(test_cases):
+            new_result = bookmark_utils.CUSUM(
+                test['data'], window_size=3, sensitivity=5).work()
+            new_result_formatted = extract_percentiles_for_alerts(new_result)
+            error_message = "In test '%s':\n" % test['name']
+            error_message += "   Input values: %s\n" % test['data']
+            error_message += "Expected alerts: %s\n" % test['expected']
+            self.assertEqual(
+                new_result_formatted,
+                test['expected'],
+                error_message + "            Got: %s" % new_result_formatted)
 
 
 class TestBookmarkUtilsPerforming(TestCase):
@@ -219,14 +216,6 @@ class TestBookmarkUtilsPerforming(TestCase):
         worst_measures = finder.worst_performing_in_period(3)
         self.assertIn(self.measure, worst_measures)
 
-    def test_miss_where_not_better_in_specified_number_of_months(self):
-        self.measure.low_is_good = False
-        self.measure.save()
-        finder = bookmark_utils.InterestingMeasureFinder(
-            pct=self.pct)
-        worst_measures = finder.worst_performing_in_period(3)
-        self.assertFalse(worst_measures)
-
     def test_miss_where_not_enough_global_data(self):
         finder = bookmark_utils.InterestingMeasureFinder(
             pct=self.pct)
@@ -254,13 +243,47 @@ class TestBookmarkUtilsPerforming(TestCase):
         best_measures = finder.best_performing_in_period(3)
         self.assertIn(self.measure, best_measures)
 
-    def test_no_hit_where_practice_best_and_low_is_bad(self):
-        self.measure.low_is_good = False
-        self.measure.save()
-        finder = bookmark_utils.InterestingMeasureFinder(
-            practice=self.low_percentile_practice)
-        best_measures = finder.best_performing_in_period(3)
-        self.assertFalse(best_measures)
+
+class TestLastAlertFinding(SimpleTestCase):
+    def test_no_alert_when_empty(self):
+        cusum = bookmark_utils.CUSUM(['a', 'b'])
+        cusum.alert_indices = []
+        self.assertIsNone(cusum.get_last_alert_info(), None)
+
+    def test_no_alert_when_alert_not_most_recent(self):
+        cusum = bookmark_utils.CUSUM(['a', 'b'])
+        cusum.alert_indices = [0]
+        self.assertIsNone(cusum.get_last_alert_info(), None)
+
+    def test_alert_parsed_when_only_alert(self):
+        cusum = bookmark_utils.CUSUM(['a', 'b', 'c'])
+        cusum.alert_indices = [2]
+        self.assertDictEqual(
+            cusum.get_last_alert_info(),
+            {'from': 'b',
+             'to': 'c',
+             'period': 1}
+        )
+
+    def test_period_parsed(self):
+        cusum = bookmark_utils.CUSUM(['a', 'b', 'c'])
+        cusum.alert_indices = [1, 2]
+        self.assertDictEqual(
+            cusum.get_last_alert_info(),
+            {'from': 'a',
+             'to': 'c',
+             'period': 2}
+        )
+
+    def test_alert_parsed_when_more_than_one_alert(self):
+        cusum = bookmark_utils.CUSUM(['1', '2', 'a', 'b'])
+        cusum.alert_indices = [1, 3]
+        self.assertDictEqual(
+            cusum.get_last_alert_info(),
+            {'from': 'a',
+             'to': 'b',
+             'period': 1}
+        )
 
 
 class TestBookmarkUtilsChanging(TestCase):
@@ -299,76 +322,46 @@ class TestBookmarkUtilsChanging(TestCase):
         self.practice_with_high_change = practice_with_high_change
         self.practice_with_high_neg_change = practice_with_high_neg_change
 
-    def test_low_change_not_returned_for_practice(self):
-        finder = bookmark_utils.InterestingMeasureFinder(
-            practice=self.practice_with_low_change,
-            interesting_percentile_change=10
-        )
-        self.assertEqual(finder.most_change_in_period(3),
-                         {'improvements': [],
-                          'declines': []})
-
-
-    def test_low_change_not_returned_for_ccg(self):
-        # This test will raise a warning due to all imput being
-        # None. Silence it.
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            finder = bookmark_utils.InterestingMeasureFinder(
-                pct=self.practice_with_low_change.ccg,
-                interesting_percentile_change=10
-            )
-            self.assertEqual(finder.most_change_in_period(3),
-                             {'improvements': [],
-                              'declines': []})
-
     def test_high_change_returned(self):
         finder = bookmark_utils.InterestingMeasureFinder(
             practice=self.practice_with_high_change,
-            interesting_percentile_change=10)
-        sorted_measure = finder.most_change_in_period(3)
+            interesting_change_window=10)
+        sorted_measure = finder.most_change_against_window(1)
         measure_info = sorted_measure['improvements'][0]
         self.assertEqual(
-            measure_info[0].id, 'cerazette')
+            measure_info['measure'].id, 'cerazette')
         self.assertAlmostEqual(
-            measure_info[1], 7)   # start
+            measure_info['from'], 7)   # start
         self.assertAlmostEqual(
-            measure_info[2], 21)  # end
-        self.assertAlmostEqual(
-            measure_info[3], 0)   # residuals
+            measure_info['to'], 21)  # end
 
     def test_high_change_declines_when_low_is_good(self):
         self.measure.low_is_good = True
         self.measure.save()
         finder = bookmark_utils.InterestingMeasureFinder(
             practice=self.practice_with_high_change,
-            interesting_percentile_change=10)
-        sorted_measure = finder.most_change_in_period(3)
+            interesting_change_window=10)
+        sorted_measure = finder.most_change_against_window(1)
         measure_info = sorted_measure['declines'][0]
         self.assertEqual(
-            measure_info[0].id, 'cerazette')
+            measure_info['measure'].id, 'cerazette')
         self.assertAlmostEqual(
-            measure_info[1], 7)   # start
+            measure_info['from'], 7)   # start
         self.assertAlmostEqual(
-            measure_info[2], 21)  # end
-        self.assertAlmostEqual(
-            measure_info[3], 0)   # residuals
+            measure_info['to'], 21)  # end
 
     def test_high_negative_change_returned(self):
         finder = bookmark_utils.InterestingMeasureFinder(
             practice=self.practice_with_high_neg_change,
-            interesting_percentile_change=10)
-        sorted_measure = finder.most_change_in_period(3)
+            interesting_change_window=10)
+        sorted_measure = finder.most_change_against_window(1)
         measure_info = sorted_measure['declines'][0]
         self.assertEqual(
-            measure_info[0].id, 'cerazette')
+            measure_info['measure'].id, 'cerazette')
         self.assertAlmostEqual(
-            measure_info[1], 21)  # start
+            measure_info['from'], 21)  # start
         self.assertAlmostEqual(
-            measure_info[2], 7)   # end
-        self.assertAlmostEqual(
-            measure_info[3], 0)   # residuals
+            measure_info['to'], 7)   # end
 
 
 def _makeCostSavingMeasureValues(measure, practice, savings):
@@ -521,8 +514,13 @@ class GenerateImageTestCase(unittest.TestCase):
         self.selector = "#thing2"
 
     def tearDown(self):
-        import os
-        os.remove(self.file_path)
+        try:
+            os.remove(self.file_path)
+        except OSError as e:
+            import errno
+            # We don't care about a "No such file or directory" error
+            if e.errno != errno.ENOENT:
+                raise
 
     def test_image_generated(self):
         self.assertEqual(len(self.msg.attachments), 0)
@@ -582,24 +580,76 @@ class UnescapeTestCase(unittest.TestCase):
             bookmark_utils.unescape_href(example), expected)
 
 
+class TestContextForOrgEmail(unittest.TestCase):
+    def setUp(self):
+        ImportLog.objects.create(
+            category='prescribing',
+            current_at=datetime.today())
+
+    @patch('frontend.views.bookmark_utils.InterestingMeasureFinder.'
+           'worst_performing_in_period')
+    @patch('frontend.views.bookmark_utils.InterestingMeasureFinder.'
+           'best_performing_in_period')
+    @patch('frontend.views.bookmark_utils.InterestingMeasureFinder.'
+           'most_change_against_window')
+    def test_non_ordinal_sorting(
+            self,
+            most_change_against_window,
+            best_performing_in_period,
+            worst_performing_in_period):
+        ordinal_measure_1 = MagicMock(low_is_good=True)
+        non_ordinal_measure_1 = MagicMock(low_is_good=None)
+        non_ordinal_measure_2 = MagicMock(low_is_good=None)
+        most_change_against_window.return_value = {
+            'improvements': [
+                {'measure': ordinal_measure_1}],
+            'declines': [
+                {'measure': non_ordinal_measure_1},
+                {'measure': non_ordinal_measure_2}]
+        }
+        best_performing_in_period.return_value = [
+            ordinal_measure_1, non_ordinal_measure_1]
+        worst_performing_in_period.return_value = [
+            ordinal_measure_1, non_ordinal_measure_1]
+        finder = bookmark_utils.InterestingMeasureFinder(
+            pct='foo')
+        context = finder.context_for_org_email()
+        self.assertEqual(
+            context['most_changing_interesting'],
+            [{'measure': non_ordinal_measure_1},
+             {'measure': non_ordinal_measure_2}]
+        )
+        self.assertEqual(
+            context['interesting'], [non_ordinal_measure_1])
+        self.assertEqual(
+            context['best'], [ordinal_measure_1])
+        self.assertEqual(
+            context['worst'], [ordinal_measure_1])
+        self.assertEqual(
+            context['most_changing']['improvements'],
+            [{'measure': ordinal_measure_1}])
+
+
 class TruncateSubjectTestCase(unittest.TestCase):
     def test_truncate_subject(self):
         data = [
-            {'input': 'a short title by me',
-             'expected': 'Your monthly update about a short title by me'},
+            {'input': 'short title by me',
+             'expected': 'Your monthly update about Short Title by Me'},
+            {'input': 'THING IN CAPS',
+             'expected': 'Your monthly update about Thing in Caps'},
             {'input':
              ('Items for Abacavir + Levocabastine + Levacetylmethadol '
               'Hydrochloride + 5-Hydroxytryptophan vs Frovatriptan + '
-              'Alverine Citrate + Boceprevir by all CCGs'),
+              'Alverine Citrate + Boceprevir by All CCGs'),
              'expected':
-             ('Your monthly update about items for Abacavir + Levocaba...'
-              'by all CCGs')},
+             ('Your monthly update about Items for Abacavir + Levocaba...'
+              'by All CCGs')},
             {'input':
              ('The point is that the relative freedom which we enjoy'
               'depends of public opinion. The law is no protection.'),
              'expected':
-             ('Your monthly update about the point is that the relative '
-              'freedom w...')}]
+             ('Your monthly update about The Point Is That the Relative '
+              'Freedom W...')}]
 
         for test_case in data:
             self.assertEqual(
@@ -624,6 +674,10 @@ def _makeContext(**kwargs):
         'worst': [
         ],
         'best': [
+        ],
+        'most_changing_interesting': [
+        ],
+        'interesting': [
         ]
     }
     if 'declines' in kwargs:
@@ -644,4 +698,9 @@ def _makeContext(**kwargs):
         empty_context['worst'] = kwargs['worst']
     if 'best' in kwargs:
         empty_context['best'] = kwargs['best']
+    if 'interesting' in kwargs:
+        empty_context['interesting'] = kwargs['interesting']
+    if 'most_changing_interesting' in kwargs:
+        empty_context['most_changing_interesting'] = \
+          kwargs['most_changing_interesting']
     return empty_context

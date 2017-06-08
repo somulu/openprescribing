@@ -5,6 +5,7 @@ import os
 
 from ebmdatalab import bigquery
 from mock import patch
+from mock import MagicMock
 
 from django.conf import settings
 from django.core.management import call_command
@@ -15,7 +16,6 @@ from frontend.models import Measure
 from frontend.models import MeasureValue, MeasureGlobal, Chemical
 from frontend.models import PCT
 from frontend.models import Practice
-from frontend.models import SHA
 
 
 def isclose(a, b, rel_tol=0.001, abs_tol=0.0):
@@ -25,6 +25,19 @@ def isclose(a, b, rel_tol=0.001, abs_tol=0.0):
         return a == b
 
 
+def test_measures():
+    fpath = settings.INSTALL_ROOT
+    fname = os.path.join(
+        fpath, ('openprescribing/frontend/tests/fixtures/'
+                'cerazette_measure.json'))
+    json_data = json.load(open(fname))
+    return {
+        'cerazette': json_data
+    }
+
+
+@patch('frontend.management.commands.import_measures.parse_measures',
+       new=MagicMock(return_value=test_measures()))
 class ArgumentTestCase(TestCase):
     def test_months_parsed_from_hscic_filename(self):
         opts = [
@@ -40,6 +53,8 @@ class ArgumentTestCase(TestCase):
         self.assertEqual(result['end_date'], '2016-03-01')
 
 
+@patch('frontend.management.commands.import_measures.parse_measures',
+       new=MagicMock(return_value=test_measures()))
 class UnitTests(TestCase):
     """Unit tests with mocked bigquery. Many of the functional
     tests could be moved hree.
@@ -189,7 +204,10 @@ class BigqueryFunctionalTests(TestCase):
             'test_mode': True,
             'v': 3
         }
-        call_command('import_measures', *args, **opts)
+        with patch('frontend.management.commands.import_measures'
+                   '.parse_measures',
+                   new=MagicMock(return_value=test_measures())):
+            call_command('import_measures', *args, **opts)
 
         m = Measure.objects.get(id='cerazette')
         month = '2015-10-01'
@@ -426,7 +444,6 @@ class BigqueryFunctionalTests(TestCase):
 
     @classmethod
     def _createData(cls):
-        SHA.objects.create(code='Q51')
         bassetlaw = PCT.objects.create(code='02Q', org_type='CCG')
         lincs_west = PCT.objects.create(code='04D', org_type='CCG')
         lincs_east = PCT.objects.create(code='03T', org_type='CCG',
@@ -487,7 +504,10 @@ class BigqueryFunctionalTests(TestCase):
             'test_mode': True,
             'v': 3
         }
-        call_command('import_measures', *args, **opts)
+        with patch('frontend.management.commands.import_measures'
+                   '.parse_measures',
+                   new=MagicMock(return_value=test_measures())):
+            call_command('import_measures', *args, **opts)
 
     def _walk(self, mv, data):
         for k, v in data.items():

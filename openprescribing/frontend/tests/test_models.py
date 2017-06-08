@@ -1,7 +1,14 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
-from frontend.models import Chemical, Section, Practice
-from frontend.validators import isAlphaNumeric
+from frontend.models import Chemical
+from frontend.models import EmailMessage
+from frontend.models import MailLog
+from frontend.models import PCT
+from frontend.models import Practice
+from frontend.models import Presentation
+from frontend.models import SearchBookmark
+from frontend.models import Section
+from frontend.models import User
 
 
 class ValidationTestCase(TestCase):
@@ -71,3 +78,94 @@ class PracticeTestCase(TestCase):
         address = "HOPEVILLE AVE ST PETERSY, "
         address += "BROADSTAIRS, KENT, CT10 2TR"
         self.assertEqual(practice.address_pretty_minus_firstline(), address)
+
+    def test_name_titlecase(self):
+        practice = Practice.objects.get(code='G82650')
+        self.assertEqual(practice.cased_name, 'Mocketts Wood Surgery')
+
+
+class TestMessage(object):
+    to = ['foo']
+    subject = 'subject'
+    tags = []
+    extra_headers = {'message-id': '123'}
+
+    def __eq__(self, other):
+        match = True
+        for attr in dir(self):
+            if not attr.startswith('_'):
+                match = getattr(self, attr) == getattr(other, attr)
+                if not match:
+                    return False
+        return match
+
+
+class EmailMessageTestCase(TestCase):
+    def test_message_pickled(self):
+        msg = TestMessage()
+        m = EmailMessage.objects.create_from_message(msg)
+        self.assertEqual(msg, m.message)
+
+    def test_message_id_assertion(self):
+        msg = TestMessage()
+        msg.extra_headers = {}
+        with self.assertRaises(StandardError):
+            EmailMessage.objects.create_from_message(msg)
+
+
+class SearchBookmarkTestCase(TestCase):
+    fixtures = ['users']
+
+    def test_name_is_truncated(self):
+        very_long_name = 'l' * 2000
+        SearchBookmark.objects.create(
+            name=very_long_name,
+            user=User.objects.first(),
+            url='foo'
+        )
+        self.assertEqual(len(SearchBookmark.objects.first().name), 200)
+
+
+class MailLogTestCase(TestCase):
+    def test_metadata_nests_correctly(self):
+        MailLog.objects.create(
+            recipient='me',
+            event_type='accepted',
+            metadata={'thing': ['foo']}
+        )
+        self.assertEqual(MailLog.objects.first().metadata['thing'][0], 'foo')
+
+    def test_no_constraint_on_message_id(self):
+        MailLog.objects.create(
+            recipient='me',
+            event_type='accepted',
+            metadata={'thing': ['foo']},
+            message_id='123'
+        )
+        self.assertEqual(MailLog.objects.first().message_id, '123')
+
+
+class PCTTestCase(TestCase):
+    def test_name_titlecase(self):
+        PCT.objects.create(
+            code='asd',
+            org_type='CCG',
+            name='NHS BACON CCG'
+        )
+        self.assertEqual(PCT.objects.first().cased_name, 'NHS Bacon CCG')
+
+
+class PresentationTestCase(TestCase):
+    def test_manager(self):
+        drug_n = Presentation.objects.create(
+            bnf_code='NNNNNNNNNNNNNNN',
+            name='Drug N'
+            )
+        Presentation.objects.create(
+            bnf_code='MMMMMMMMMMMMMMM',
+            name='Drug M',
+            replaced_by=drug_n
+        )
+        current = Presentation.objects.current()
+        self.assertEqual(len(current), 1)
+        self.assertEqual(current[0].name, 'Drug N')

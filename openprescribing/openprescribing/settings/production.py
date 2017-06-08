@@ -8,9 +8,9 @@ from common import utils
 # HOST CONFIGURATION
 # See:
 # https://docs.djangoproject.com/en/1.5/releases/1.5/#allowed-hosts-required-in-production
-ALLOWED_HOSTS = ['deploy.openprescribing.net',
-                 'openprescribing.net',
-                 'openprescriptions.net', ]
+ALLOWED_HOSTS = ['openprescribing.net',
+                 'deploy.openprescribing.net',
+                 'openprescriptions.net']
 # END HOST CONFIGURATION
 
 # See: https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
@@ -25,7 +25,8 @@ DATABASES = {
         'NAME': utils.get_env_setting('DB_NAME'),
         'USER': utils.get_env_setting('DB_USER'),
         'PASSWORD': utils.get_env_setting('DB_PASS'),
-        'HOST': utils.get_env_setting('DB_HOST', '127.0.0.1')
+        'HOST': utils.get_env_setting('DB_HOST', '127.0.0.1'),
+        'CONN_MAX_AGE': 0  # Must be zero, see api/view_utils#db_timeout
     },
     'old': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
@@ -67,6 +68,7 @@ CACHES = {
 }
 
 GOOGLE_TRACKING_ID = 'UA-62480003-1'
+GOOGLE_OPTIMIZE_CONTAINER_ID = 'GTM-5PX77GZ'
 
 ANYMAIL["MAILGUN_SENDER_DOMAIN"] = "openprescribing.net",
 

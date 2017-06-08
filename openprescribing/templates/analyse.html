@@ -15,7 +15,9 @@
 
 <h1>Search GP prescribing data</h1>
 
-<p>Search 600 million rows of prescribing data, and get prescribing information by CCG or practice. You can search for any numerator over any denominator. For example, prescriptions by CCG for <a target="_blank" href="{% url 'analyse' %}#numIds=0212000AA&denomIds=2.12">branded Rosuvastatin as a proportion of all lipid-regulating drugs <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>; or for <a target="_blank" href="{% url 'analyse' %}#numIds=0212000AA&denomIds=0212000B0">Rosuvastatin vs generic Atorvastatin <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>; or for <a target="_blank" href="{% url 'analyse' %}#numIds=0205051I0&denomIds=2.5.5">Enalapril as a proportion of its drug class <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>. Add the name of a CCG or practice to check how an organisation compares with its peers. Don't forget to look at time trends, and maps!</p>
+<p>Search 700 million rows of prescribing data, and get prescribing information by CCG or practice. You can search for any numerator over any denominator. For example, prescriptions by CCG for <a target="_blank" href="{% url 'analyse' %}#numIds=0212000AA&denomIds=2.12">branded Rosuvastatin as a proportion of all lipid-regulating drugs <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>; or for <a target="_blank" href="{% url 'analyse' %}#numIds=0212000AA&denomIds=0212000B0">Rosuvastatin vs generic Atorvastatin <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>; or for <a target="_blank" href="{% url 'analyse' %}#numIds=0205051I0&denomIds=2.5.5">Enalapril as a proportion of its drug class <span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a>. Add the name of a CCG or practice to check how an organisation compares with its peers. Don't forget to look at time trends, and maps!</p>
+
+<p>Unsure how to create your own searches? <a href="http://openprescribing.net/docs/analyse">Read more</a> about how to use this tool and check our <a href="{% url 'faq' %}">FAQs</a>.</p>
 
 <div class="alert alert-danger" role="alert" style="margin-top: 10px;" id="old-browser">
   <strong>Warning!</strong> It looks like you're using an older browser. This form may be very slow, as it has to crunch through a lot of data to render the graphs. If you can, please try again with a modern browser.
@@ -158,6 +160,7 @@
                 Built with <a href="http://www.highcharts.com/">Highcharts</a>
             </div>
         </div>
+        {% include '_outlier_toggle.html' %}
     </div>
 
     <div role="tabpanel" class="tab-pane fade" id="chart-panel" class="chart-tab">
@@ -168,6 +171,7 @@
             </div>
             <div class="highcharts-attribution">Built with <a href="http://www.highcharts.com/">Highcharts</a></div>
         </div>
+        {% include '_outlier_toggle.html' %}
     </div>
 
     <div role="tabpanel" class="tab-pane fade" id="map-panel" class="map-tab">
@@ -175,13 +179,16 @@
         <p class="chart-title"></p>
         <p class="chart-sub-title"></p>
       </div>
-      <div id="map-wrapper">
-        <div id="map"></div>
-      </div>
+      <div class="clearfix">
+        <div id="map-wrapper">
+          <div id="map"></div>
+        </div>
         <div class="practice-warning">
         For clarity, practice graphs and maps only show standard GP practices, and exclude non-standard settings like prisons, out-of-hours services, etc.
         CCG boundaries from <a href="http://www.england.nhs.uk/resources/ccg-maps/">NHS England</a>. Practice locations are approximate, based on postcode. Only practices with a known location are shown here.
         </div>
+       </div>
+       {% include '_outlier_toggle.html' %}
     </div>
 
     <div role="tabpanel" class="tab-pane fade" id="data-panel" class="data-tab">
@@ -195,22 +202,7 @@
 
 <br/>
 
-{% load crispy_forms_tags %}
-{% if not signed_up_for_alert %}
-<div id="alert-form-container">
-  Get monthly alerts about this analysis:
-  <form method="post" class="form form-inline" id="alert-form">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    {{ form | crispy }}
-    <input class="btn btn-primary" type="submit" value="Subscribe">
-    {% if request.user.is_superuser %}
-      <a id="preview-analyse-bookmark" href="{% url 'preview-analyse-bookmark' %}?url=" class="btn btn-danger">Preview alert email</a>
-    {% endif %}
-  </form>
-</div>
-<br/>
-{% endif %}
+{% include '_alert_signup_form.html' with alert_type='analyse'%}
 
 <p>Read our notes on <a href="{% url 'caution' %}">understanding the data</a>. Found something interesting, or a bug? Get in touch: <a href="mailto:{{ SUPPORT_EMAIL }}" class="doorbell-show">{{ SUPPORT_EMAIL}}</a></p>
 

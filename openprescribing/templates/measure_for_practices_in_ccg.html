@@ -19,7 +19,7 @@
 <p>Read <a href="{{ measure.url }}">more about this measure</a>.</p>
 {% endif %}
 
-<p><strong>Why it matters</strong>: {{ measure.why_it_matters }}</p>
+<p><strong>Why it matters</strong>: {{ measure.why_it_matters|safe }}</p>
 
 <p><strong>Definition</strong>: {% autoescape off %} {{ measure.description }} {% endautoescape %}</p>
 
@@ -71,7 +71,7 @@ var measureData = {
     'orgType': 'practice',
     'measure': '{{ measure.id }}',
     'isCostBasedMeasure': {{ measure.is_cost_based|yesno:"true,false" }},
-    'lowIsGood': {{ measure.low_is_good|yesno:"true,false" }},
+    'lowIsGood': {{ measure.low_is_good|yesno:"true,false,null" }},
     'numerator': '{{ measure.numerator_short }}',
     'denominator': '{{ measure.denominator_short }}'
 };

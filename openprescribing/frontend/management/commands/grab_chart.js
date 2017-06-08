@@ -28,14 +28,18 @@ if (system.args.length < 6) {
     } else {
       waitFor({
         debug: true,
+        extraWait: wait,
         interval: 500,  // The time series chart is actually
                         // visible some time after the element is
                         // visible (there's a jerky refresh thing
                         // going on). We should fix the jerky thing,
                         // then we can make the timeout shorter
-        timeout: 10000,
+        timeout: 60000,
         check: function() {
           return page.evaluate(function(s) {
+            // trigger scroll-related events in measures pages.
+            // without this, we'd be screenshotting undrawn charts
+            $('body').scrollTop(1);
             return $(s).is(':visible');
           }, selector);
         },
@@ -70,7 +74,7 @@ function waitFor($config) {
     }
     return setTimeout(function() {
       return $config.success();
-    }, wait); // the extra wait is for the graph to paint
+    }, $config.extraWait); // the extra wait is for the graph to paint
   }
 
   setTimeout(waitFor, $config.interval || 0, $config);

@@ -1,6 +1,5 @@
 var moment = require('moment');
 var _ = require('underscore');
-var ss = require('simple-statistics');
 var config = require('./config');
 
 var utils = {
@@ -93,19 +92,64 @@ var utils = {
     return str;
   },
 
-  combineXAndYDatasets: function(xData, yData, values) {
-        // console.log('combineXAndYDatasets');
-        // Glue the x and y series data points together,
-        // and returns a dataset with a row for each organisation and each month.
-        // Also calculates ratios for cost and items.
-    var isSpecialDenominator = ((values.x_val !== 'x_actual_cost') &&
-                                    (values.x_val !== 'x_items') &&
-                                    (typeof values.x_val !== 'undefined'));
-    var combinedData = this.combineDatasets(xData, yData, values.x, values.x_val);
+  combineXAndYDatasets: function(xData, yData, options) {
+    // Glue the x and y series data points together, and returns a
+    // dataset with a row for each organisation and each month.  Also
+    // calculates ratios for cost and items, and optionally filters
+    // out CCGs or practices with significant numbers of ratios where
+    // the denominator is greater than the numerator.
+    var isSpecialDenominator = (
+      (options.chartValues.x_val !== 'x_actual_cost') &&
+        (options.chartValues.x_val !== 'x_items') &&
+        (typeof options.chartValues.x_val !== 'undefined'));
+    var combinedData = this.combineDatasets(
+      xData, yData, options.chartValues.x, options.chartValues.x_val);
     combinedData = this.calculateRatiosForData(combinedData,
                                              isSpecialDenominator,
-                                             values.x_val);
+                                             options.chartValues.x_val);
     this.sortByDateAndRatio(combinedData, 'ratio_items');
+    return this.partitionOutliers(combinedData, options);
+  },
+
+  partitionOutliers: function(combinedData, options) {
+    // Optionally separate practices or CCGs that have a number of
+    // data points that are extreme outliers (which we count as the
+    // upper quartile plus 20 times the interquartile range)
+    var byDate = _.groupBy(combinedData, 'date');
+    var candidates = {};
+    _.mapObject(byDate, function(val, key) {
+      var ratios = _.pluck(val, 'ratio_items');
+      ratios.sort(function(a, b) {
+        return a - b;
+      });
+      // Discount zero values when calculating outliers
+      ratios = _.filter(ratios, function(d) {
+        return d > 0;
+      });
+      var l = ratios.length;
+      var LQ = ratios[Math.round(l / 4) - 1];
+      var UQ = ratios[Math.round(3 * l / 4) - 1];
+      var IQR = UQ - LQ;
+      var cutoff = UQ + 20 * IQR;
+      var outliers = _.filter(val, function(d) {
+        return d.ratio_items > cutoff;
+      });
+      _.each(outliers, function(d) {
+        candidates[d.id] = d.row_name;
+      });
+    });
+    var skipIds = _.keys(candidates);
+    var filteredData = _.filter(combinedData, function(d) {
+      return !(_.contains(skipIds, d.id));
+    });
+    if (filteredData.length !== combinedData.length) {
+      options.hasOutliers = true;
+      options.skippedOutliers = candidates;
+    }
+    // If the option is set, actually hide these practices or CCGs
+    if (options.hideOutliers) {
+      combinedData = filteredData;
+    }
     return combinedData;
   },
 
@@ -151,21 +195,7 @@ var utils = {
       return p;
     }, xDataDict);
 
-        // Polyfill for IE8 etc.
-    var keys = [];
-    if (!Object.keys) {
-      for (var i in xAndYDataDict) {
-        if (xAndYDataDict.hasOwnProperty(i)) {
-          keys.push(i);
-        }
-      }
-    } else {
-      keys = Object.keys(xAndYDataDict);
-    }
-
-    var combined = _.map(keys, function(key) {
-      return xAndYDataDict[key];
-    });
+    var combined = _.values(xAndYDataDict);
     return _.filter(combined, function(p) {
             // Filter out non-prescribing practices. Ignore this for CCGs.
       return (typeof (p.setting) === 'undefined') || (p.setting === 4);
@@ -229,12 +259,20 @@ var utils = {
     return newData;
   },
 
-  getAllMonthsInData: function(combinedData) {
+  getAllMonthsInData: function(options) {
+    var combinedData = options.data.combinedData;
         // Used for date slider.
     var monthRange = [];
     if (combinedData.length > 0) {
-      var firstMonth = combinedData[0].date,
-        lastMonth = combinedData[combinedData.length - 1].date;
+      var firstMonth = combinedData[0].date;
+      if (options.org === 'CCG') {
+        // CCGs were formed in Aug 2013. This special-casing can be
+        // removed after Aug 2018, as we only deal with 5 years of
+        // data.
+        var firstCCGDate = '2013-08-01';
+        firstMonth = firstMonth > firstCCGDate ? firstMonth : firstCCGDate;
+      }
+      var lastMonth = combinedData[combinedData.length - 1].date;
       var startDate = moment(firstMonth);
       var endDate = moment(lastMonth);
       if (endDate.isBefore(startDate)) {
@@ -248,10 +286,10 @@ var utils = {
     return monthRange;
   },
 
-  calculateQuintiles: function(combinedData) {
-        // Used in maps.
-    var quintiles = {},
-      temp = {};
+  calculateMinMaxByDate: function(combinedData) {
+    // Used in maps.
+    var minMaxByDate = {};
+    var temp = {};
     _.each(combinedData, function(d) {
       if (d.date in temp) {
         temp[d.date].push(d);
@@ -259,34 +297,18 @@ var utils = {
         temp[d.date] = [d];
       }
     });
-    var quintilePoints = [0, 20, 40, 60, 80, 100];
     for (var date in temp) {
-      quintiles[date] = {};
-      quintiles[date].ratio_actual_cost = utils.calculatePercentiles(temp[date],
-                                       'ratio_actual_cost',
-                                       quintilePoints);
-      quintiles[date].ratio_items = utils.calculatePercentiles(temp[date],
-                                       'ratio_items',
-                                       quintilePoints);
+      minMaxByDate[date] = {};
+      minMaxByDate[date].ratio_actual_cost = this.calculateMinMax(temp[date], 'ratio_actual_cost');
+      minMaxByDate[date].ratio_items = this.calculateMinMax(temp[date], 'ratio_items');
     }
-    return quintiles;
+
+    return minMaxByDate;
   },
 
-  calculatePercentiles: function(data, field, percentiles) {
-    var vals = [],
-      quantiles = [];
-    _.each(data, function(feature) {
-      vals.push(feature[field]);
-    });
-    _.each(percentiles, function(percentile) {
-      quantiles.push(ss.quantile(vals, percentile * 0.01));
-    });
-    while ((quantiles.length > 2) && (+quantiles[1] === 0)) {
-      quantiles.splice(1, 1);
-    }
-    return quantiles;
+  calculateMinMax: function(arr, key) {
+    return [_.min(_.pluck(arr, key)), _.max(_.pluck(arr, key))];
   },
-
 
   setChartValues: function(options) {
     var y = options.activeOption,

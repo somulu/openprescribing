@@ -12,6 +12,7 @@ from common import utils
 from ebmdatalab import bigquery
 from frontend.management.commands import create_views
 from frontend.models import ImportLog
+from google.cloud import storage
 
 
 def _mockFile(name):
@@ -33,7 +34,8 @@ class UnitTests(unittest.TestCase):
 class CommandsTestCase(SimpleTestCase):
     allow_database_queries = True
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         if 'SKIP_BQ_LOAD' not in os.environ:
             # Create local test data from fixtures, then upload this to a
             # test project in bigquery
@@ -55,12 +57,16 @@ class CommandsTestCase(SimpleTestCase):
             with env:
                 # We patch the environment as this is how the
                 # ebmdatalab/bigquery library selects a database
-                bigquery.load_prescribing_data_from_file(
-                    'test_hscic',
-                    'prescribing',
-                    prescribing_fixture)
+                for table in [
+                        'normalised_prescribing_standard',
+                        'normalised_prescribing_legacy']:
+                    bigquery.load_prescribing_data_from_file(
+                        'test_hscic',
+                        table,
+                        prescribing_fixture)
                 bigquery.load_ccgs_from_pg('test_hscic')
                 bigquery.load_statistics_from_pg('test_hscic')
+
         ImportLog.objects.create(
             category='prescribing', current_at='2015-10-01')
         # Create view tables and indexes
@@ -68,19 +74,34 @@ class CommandsTestCase(SimpleTestCase):
                 'frontend/management/commands/replace_matviews.sql', 'r') as f:
             with connection.cursor() as c:
                 c.execute(f.read())
-        args = []
-        opts = {
-            'dataset': 'test_hscic'
-        }
-        call_command('create_views', *args, **opts)
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         # Is this redundant?
         call_command('flush', verbosity=0, interactive=False)
 
-    def test_import_create_views(self):
-        with connection.cursor() as c:
+    def test_existing_files_deleted(self):
+        # Create a dataset fragment which should end up being deleted
+        client = storage.Client(project='ebmdatalab')
+        bucket = client.get_bucket('ebmdatalab')
+        blob_name = ('test_hscic/views/vw__presentation_summary_by_ccg'
+                     '-000000009999.csv.gz')
+        blob = bucket.blob(blob_name)
+        blob.upload_from_string("test", content_type="application/gzip")
 
+        # Run import command
+        call_command('create_views', dataset='test_hscic')
+
+        # Check the bucket is no longer there
+        client = storage.Client(project='ebmdatalab')
+        bucket = client.get_bucket('ebmdatalab')
+        prefix, suffix = blob_name.split('-')
+        for blob in bucket.list_blobs(prefix=prefix):
+            self.assertNotIn(suffix, blob.path)
+
+    def test_import_create_views(self):
+        call_command('create_views', dataset='test_hscic')
+        with connection.cursor() as c:
             cmd = 'SELECT * FROM vw__practice_summary '
             cmd += 'ORDER BY processing_date, practice_id'
             c.execute(cmd)
@@ -92,7 +113,7 @@ class CommandsTestCase(SimpleTestCase):
             self.assertEqual(results[1][4], 38500)
 
             cmd = 'SELECT * FROM vw__presentation_summary '
-            cmd += 'ORDER BY processing_date'
+            cmd += 'ORDER BY processing_date, presentation_code'
             c.execute(cmd)
             results = c.fetchall()
             self.assertEqual(len(results), 4)

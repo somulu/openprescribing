@@ -3,7 +3,9 @@
 
 # Open Prescribing
 
-Website code for https://openprescribing.net - a Django application that provides a REST API and dashboards for the HSCIC's [GP-level prescribing data](http://www.hscic.gov.uk/searchcatalogue?q=title%3a%22presentation+level+data%22&sort=Relevance&size=100&page=1#top)
+Website code for https://openprescribing.net - a Django application that provides a REST API and dashboards for the NHS Digitals's [GP-level prescribing data](http://content.digital.nhs.uk/searchcatalogue?q=title%3A%22presentation+level+data%22&area=&size=10&sort=Relevance) and [NHS BSA's Detailed Prescribing Information Report](https://apps.nhsbsa.nhs.uk/infosystems/welcome). 
+
+Information about data sources used on OpenPrescribing can be found [here](https://openprescribing.net/about/)
 
 # Set up the application
 
@@ -55,6 +57,18 @@ travis.
     # push the images to hub.docker.io
     docker push ebmdatalab/openprescribing-base
     docker push ebmdatalab/openprescribing-test
+
+
+### Running the application from within Docker
+To be able to access the django instance running inside Docker from outside the container, docker must be told to publish the port on which Django will listen:
+
+    docker-compose run -p 8000:8000 dev
+
+This will give a shell, at which you can start Django, specifying the ``0.0.0.0`` interface so that it will accept connections from all IP addesses (not just localhost):
+
+     python manage.py runserver_plus 0.0.0.0:8000 --settings=openprescribing.settings.local
+
+The application should then be accessible at ``http://localhost:8000/`` from a web-browser on the host computer.
 
 ## On bare metal
 

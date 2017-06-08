@@ -1,12 +1,19 @@
+import cPickle
+import json
 import uuid
+
 from django.contrib.gis.db import models
 from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from validators import isAlphaNumeric
-import model_prescribing_units
-from dmd_models import DMDProduct
 
+from anymail.signals import EventType
+
+from common.utils import nhs_titlecase
+from frontend.validators import isAlphaNumeric
+from frontend import model_prescribing_units
+from frontend.dmd_models import DMDProduct
 
 class Section(models.Model):
     bnf_id = models.CharField(max_length=8, primary_key=True)
@@ -15,8 +22,9 @@ class Section(models.Model):
     bnf_chapter = models.IntegerField()
     bnf_section = models.IntegerField(null=True, blank=True)
     bnf_para = models.IntegerField(null=True, blank=True)
+    is_current = models.BooleanField(default=True)
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
     def save(self, *args, **kwargs):
@@ -48,19 +56,6 @@ class Section(models.Model):
         ordering = ["bnf_id"]
 
 
-class SHA(models.Model):
-    '''
-    SHAs or Area Teams (depending on date).
-    '''
-    code = models.CharField(max_length=3, primary_key=True,
-                            help_text='Strategic health authority code')
-    ons_code = models.CharField(max_length=9, null=True, blank=True)
-    name = models.CharField(max_length=200, null=True, blank=True)
-    boundary = models.MultiPolygonField(null=True, blank=True)
-
-    objects = models.GeoManager()
-
-
 class PCT(models.Model):
     '''
     PCTs or CCGs (depending on date).
@@ -77,8 +72,7 @@ class PCT(models.Model):
     name = models.CharField(max_length=200, null=True, blank=True)
     org_type = models.CharField(max_length=9, choices=PCT_ORG_TYPES,
                                 default='Unknown')
-    boundary = models.GeometryField(null=True, blank=True)
-    managing_group = models.ForeignKey(SHA, null=True, blank=True)
+    boundary = models.GeometryField(null=True, blank=True, srid=4326)
     open_date = models.DateField(null=True, blank=True)
     close_date = models.DateField(null=True, blank=True)
     address = models.CharField(max_length=400, null=True, blank=True)
@@ -88,6 +82,10 @@ class PCT(models.Model):
 
     def __unicode__(self):
         return self.name or ""
+
+    @property
+    def cased_name(self):
+        return nhs_titlecase(self.name)
 
 
 class Practice(models.Model):
@@ -129,7 +127,6 @@ class Practice(models.Model):
         ('P', 'Proposed')
     )
     ccg = models.ForeignKey(PCT, null=True, blank=True)
-    area_team = models.ForeignKey(SHA, null=True, blank=True)
     code = models.CharField(max_length=6, primary_key=True,
                             help_text='Practice code')
     name = models.CharField(max_length=200)
@@ -153,6 +150,10 @@ class Practice(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def cased_name(self):
+        return nhs_titlecase(self.name)
 
     def address_pretty(self):
         address = self.address1 + ', '
@@ -258,6 +259,7 @@ class Chemical(models.Model):
     bnf_code = models.CharField(max_length=9, primary_key=True,
                                 validators=[isAlphaNumeric])
     chem_name = models.CharField(max_length=200)
+    is_current = models.BooleanField(default=True)
 
     def __str__(self):
         return '%s: %s' % (self.bnf_code, self.chem_name)
@@ -282,6 +284,7 @@ class Product(models.Model):
                                 validators=[isAlphaNumeric])
     name = models.CharField(max_length=200)
     is_generic = models.BooleanField()
+    is_current = models.BooleanField(default=True)
 
     def __str__(self):
         return '%s: %s' % (self.bnf_code, self.name)
@@ -294,10 +297,18 @@ class Product(models.Model):
         app_label = 'frontend'
 
 
+class PresentationManager(models.Manager):
+    def current(self):
+        return self.filter(replaced_by__isnull=True)
+
+
 class Presentation(models.Model):
-    '''
-    GP prescribing products. Import from BNF codes file from BSA.
+    '''GP prescribing products. Import from BNF codes file from BSA.
     ADQs imported from BSA data.
+
+    Where codes have changed or otherwise been mapped, the
+    `replaced_by` field has a value.
+
     '''
     bnf_code = models.CharField(max_length=15, primary_key=True,
                                 validators=[isAlphaNumeric])
@@ -306,7 +317,11 @@ class Presentation(models.Model):
     active_quantity = models.FloatField(null=True, blank=True)
     adq = models.FloatField(null=True, blank=True)
     adq_unit = models.CharField(max_length=10, null=True, blank=True)
+    is_current = models.BooleanField(default=True)
     percent_of_adq = models.FloatField(null=True, blank=True)
+    replaced_by = models.ForeignKey('self', null=True, blank=True)
+
+    objects = PresentationManager()
 
     def __str__(self):
         return '%s: %s' % (self.bnf_code, self.name)
@@ -319,6 +334,24 @@ class Presentation(models.Model):
             is_generic = None
         self.is_generic = is_generic
         super(Presentation, self).save(*args, **kwargs)
+
+    @property
+    def current_version(self):
+        """BNF codes are replaced over time.
+
+        Return the most recent version the code.
+        """
+        version = self
+        next_version = self.replaced_by
+        seen = []
+        while next_version:
+            if next_version in seen:
+                break  # avoid loops
+            else:
+                seen.append(next_version)
+                version = next_version
+                next_version = version.replaced_by
+        return version
 
     class Meta:
         app_label = 'frontend'
@@ -337,13 +370,10 @@ class Prescription(models.Model):
     -- 12 & 13 show the Strength and Formulation
     -- 14 & 15 show the equivalent generic code (always used)
     '''
-    sha = models.ForeignKey(SHA)
-    pct = models.ForeignKey(PCT)
-    practice = models.ForeignKey(Practice)
-    chemical = models.ForeignKey(Chemical)
+    pct = models.ForeignKey(PCT, db_constraint=False, null=True)
+    practice = models.ForeignKey(Practice, db_constraint=False, null=True)
     presentation_code = models.CharField(max_length=15,
                                          validators=[isAlphaNumeric])
-    presentation_name = models.CharField(max_length=1000)
     total_items = models.IntegerField()
     actual_cost = models.FloatField()
     quantity = models.FloatField()
@@ -461,10 +491,18 @@ class MeasureGlobal(models.Model):
         unique_together = (('measure', 'month'),)
 
 
+class TruncatingCharField(models.CharField):
+    def get_prep_value(self, value):
+        value = super(TruncatingCharField, self).get_prep_value(value)
+        if value:
+            return value[:self.max_length]
+        return value
+
+
 class SearchBookmark(models.Model):
     '''A bookmark for an individual analyse search made by a user.
     '''
-    name = models.CharField(max_length=200)
+    name = TruncatingCharField(max_length=200)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     url = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -515,9 +553,9 @@ class OrgBookmark(models.Model):
     @property
     def name(self):
         if self.practice is None:
-            return self.pct.name
+            return self.pct.cased_name
         else:
-            return self.practice.name
+            return self.practice.cased_name
 
     def org_type(self):
         if self.practice is None:
@@ -576,6 +614,98 @@ class Profile(models.Model):
         return sorted(bookmarks, key=lambda x: x.created_at)[-1]
 
 
+class EmailMessageManager(models.Manager):
+    def create_from_message(self, msg):
+        user = User.objects.filter(email=msg.to[0])
+        user = user and user[0] or None
+        if 'message-id' not in msg.extra_headers:
+            raise StandardError(
+                "Messages stored as frontend.EmailMessage"
+                "must have a message-id header")
+        m = self.create(
+            message_id=msg.extra_headers['message-id'],
+            to=msg.to,
+            subject=msg.subject,
+            tags=msg.tags,
+            user=user,
+            message=msg
+        )
+        return m
+
+
+class EmailMessage(models.Model):
+    message_id = models.CharField(max_length=998, primary_key=True)
+    pickled_message = models.BinaryField()
+    to = ArrayField(
+        models.CharField(max_length=254, db_index=True)
+    )
+    subject = models.CharField(max_length=200)
+    tags = ArrayField(
+        models.CharField(max_length=100, db_index=True),
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    user = models.ForeignKey(User, null=True, blank=True)
+    send_count = models.SmallIntegerField(default=0)
+    objects = EmailMessageManager()
+
+    @property
+    def message(self):
+        return cPickle.loads(str(self.pickled_message))
+
+    @message.setter
+    def message(self, value):
+        self.pickled_message = cPickle.dumps(value)
+
+    def send(self):
+        self.message.send()
+        self.send_count += 1
+        self.save()
+
+    def __unicode__(self):
+        return self.subject
+
+
+class MailLog(models.Model):
+    EVENT_TYPE_CHOICES = [
+        (value, value)
+        for name, value in vars(EventType).iteritems()
+        if not name.startswith('_')]
+    # delievered, accepted (by mailgun), error, warn
+    metadata = JSONField(null=True, blank=True)
+    recipient = models.CharField(max_length=254, db_index=True)
+    tags = ArrayField(
+        models.CharField(max_length=100, db_index=True),
+        null=True
+    )
+    reject_reason = models.CharField(max_length=15, null=True, blank=True)
+    event_type = models.CharField(
+        max_length=15,
+        choices=EVENT_TYPE_CHOICES,
+        db_index=True)
+    timestamp = models.DateTimeField(null=True, blank=True)
+    message = models.ForeignKey(EmailMessage, null=True, db_constraint=False)
+
+    def subject_from_metadata(self):
+        subject = 'n/a'
+        if 'subject' in self.metadata:
+            subject = self.metadata['subject']
+        elif 'message-headers' in self.metadata:
+                headers = json.loads(self.metadata['message-headers'])
+                subject_header = next(
+                    (h for h in headers if h[0] == 'Subject'),
+                    ['', 'n/a']
+                )
+                subject = subject_header[1]
+        else:
+            # likely to be "clicked" event
+            try:
+                subject = self.message.subject
+            except EmailMessage.DoesNotExist:
+                pass
+        return subject
+
+
 class GenericCodeMapping(models.Model):
     """A mapping between BNF codes that allows us to collapse clinically
     equivalent chemicals together.
@@ -629,3 +759,4 @@ class PPQSaving(models.Model):
             except Presentation.DoesNotExist:
                 name = "n/a"
         return name
+

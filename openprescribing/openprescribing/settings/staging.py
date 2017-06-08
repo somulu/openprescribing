@@ -99,3 +99,4 @@ LOGGING = {
 GRAB_HOST = "http://staging.openprescribing.net"
 
 GOOGLE_TRACKING_ID = 'UA-62480003-3'
+GOOGLE_OPTIMIZE_CONTAINER_ID = 'GTM-KRQSJM9'

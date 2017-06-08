@@ -1,4 +1,5 @@
 import requests
+import sys
 from lxml import html
 
 from django.conf import settings
@@ -8,14 +9,15 @@ from django.contrib.auth import BACKEND_SESSION_KEY
 from django.contrib.auth import HASH_SESSION_KEY
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import User
+from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.http import Http404
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils.safestring import mark_safe
 
-from frontend.models import Chemical, Prescription
-from frontend.models import Practice, SHA, PCT, Section
+from frontend.models import Chemical
+from frontend.models import Practice, PCT, Section
 from frontend.models import Measure
 from frontend.models import OrgBookmark
 from frontend.forms import OrgBookmarkForm
@@ -33,7 +35,7 @@ from allauth.account.models import EmailAddress
 # BNF SECTIONS
 ##################################################
 def all_bnf(request):
-    sections = Section.objects.all()
+    sections = Section.objects.filter(is_current=True)
     context = {
         'sections': sections
     }
@@ -54,11 +56,15 @@ def bnf_section(request, section_id):
         pass
     chemicals = None
     subsections = Section.objects.filter(
-        bnf_id__startswith=section_id) \
-        .extra(where=["CHAR_LENGTH(bnf_id)=%s" % (id_len + 2)])
+        bnf_id__startswith=section_id,
+        is_current=True
+    ).extra(
+        where=["CHAR_LENGTH(bnf_id)=%s" % (id_len + 2)])
     if not subsections:
-        chemicals = Chemical.objects.filter(bnf_code__startswith=section_id) \
-                            .order_by('chem_name')
+        chemicals = Chemical.objects.filter(
+            bnf_code__startswith=section_id,
+            is_current=True
+        ).order_by('chem_name')
     context = {
         'section': section,
         'bnf_chapter': bnf_chapter,
@@ -75,7 +81,9 @@ def bnf_section(request, section_id):
 ##################################################
 
 def all_chemicals(request):
-    chemicals = Chemical.objects.all().order_by('bnf_code')
+    chemicals = Chemical.objects.filter(
+        is_current=True
+    ).order_by('bnf_code')
     context = {
         'chemicals': chemicals
     }
@@ -113,31 +121,6 @@ def all_practices(request):
         'practices': practices
     }
     return render(request, 'all_practices.html', context)
-
-
-##################################################
-# AREA TEAMS
-##################################################
-
-def all_area_teams(request):
-    area_teams = SHA.objects.all().order_by('code')
-    context = {
-        'area_teams': area_teams
-    }
-    return render(request, 'all_area_teams.html', context)
-
-
-def area_team(request, at_code):
-    requested_at = get_object_or_404(SHA, code=at_code)
-    prescriptions = Prescription.objects.filter(sha=requested_at)
-    num_prescriptions = prescriptions.count()
-    prescriptions_to_return = prescriptions[:100]
-    context = {
-        'area_team': requested_at,
-        'num_prescriptions': num_prescriptions,
-        'prescriptions': prescriptions_to_return
-    }
-    return render(request, 'area_team.html', context)
 
 
 ##################################################
@@ -209,7 +192,10 @@ def measures_for_one_ccg(request, ccg_code):
     practices = Practice.objects.filter(
         ccg=requested_ccg).filter(
             setting=4).order_by('name')
+    alert_preview_action = reverse(
+        'preview-ccg-bookmark', args=[requested_ccg.code])
     context = {
+        'alert_preview_action': alert_preview_action,
         'ccg': requested_ccg,
         'practices': practices,
         'page_id': ccg_code,
@@ -241,7 +227,8 @@ def last_bookmark(request):
                 "to any monthly alerts!")
         return redirect(next_url)
     else:
-        messages.success(request, "Thanks, you're now subscribed to monthly alerts!")
+        messages.success(
+            request, "Thanks, you're now subscribed to monthly alerts!")
         return redirect('home')
 
 
@@ -260,7 +247,9 @@ def analyse(request):
         # page load (see `alertForm` in `chart.js`)
         form = SearchBookmarkForm(
             initial={'email': getattr(request.user, 'email', '')})
+    alert_preview_action = reverse('preview-analyse-bookmark')
     context = {
+        'alert_preview_action': alert_preview_action,
         'form': form
     }
     return render(request, 'analyse.html', context)
@@ -332,8 +321,10 @@ def measures_for_one_practice(request, code):
             practice=p)
     else:
         signed_up_for_alert = False
+    alert_preview_action = reverse('preview-practice-bookmark', args=[p.code])
     context = {
         'practice': p,
+        'alert_preview_action': alert_preview_action,
         'page_id': code,
         'form': form,
         'signed_up_for_alert': signed_up_for_alert
@@ -363,7 +354,17 @@ def gdoc_view(request, doc_id):
 
 
 ##################################################
-# TEST HTTP CODES
+# Custom HTTP errors
 ##################################################
-def test_500_view(request):
-    return HttpResponse(status=500)
+def custom_500(request):
+    type_, value, traceback = sys.exc_info()
+    context = {}
+    if 'canceling statement due to statement timeout' in value.message:
+        context['reason'] = ("The database took too long to respond.  If you "
+                             "were running an analysis with multiple codes, "
+                             "try again with fewer.")
+    if (request.META.get('HTTP_ACCEPT', '').find('application/json') > -1 or
+       request.is_ajax()):
+        return HttpResponse(context['reason'], status=500)
+    else:
+        return render(request, '500.html', context, status=500)

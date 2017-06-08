@@ -1,13 +1,20 @@
 import csv
 import datetime
-import glob
 import logging
 import re
 
 from django.core.management.base import BaseCommand
 from django.db import connection
+from django.db import transaction
 
-from frontend.models import SHA, PCT, ImportLog
+from frontend.models import Chemical
+from frontend.models import ImportLog
+from frontend.models import PCT
+from frontend.models import Practice
+from frontend.models import PracticeStatistics
+from frontend.models import Prescription
+from frontend.models import Product
+from frontend.models import Section
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +25,12 @@ class Command(BaseCommand):
     help += 'Set DEBUG to False in your settings before running this.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--filename')
+        parser.add_argument(
+            '--filename',
+            help=(
+                'A path to a properly converted file on the filesystem, '
+                'or a URI for a raw file in Google Cloud, e.g. '
+                'gs://embdatalab/hscic/'))
         parser.add_argument(
             '--date', help="Specify date rather than infer it from filename")
         parser.add_argument(
@@ -33,49 +45,73 @@ class Command(BaseCommand):
         else:
             self.truncate = False
 
-        if options['filename']:
-            files_to_import = [options['filename']]
+        fname = options['filename']
+        if options['date']:
+            self.date = datetime.datetime.strptime(
+                options['date'], '%Y-%m-%d').date()
         else:
-            filepath = './data/raw_data/T*PDPI+BNFT_formatted*'
-            files_to_import = glob.glob(filepath)
-        for f in files_to_import:
-            if options['date']:
-                date = datetime.datetime.strptime(
-                    options['date'], '%Y-%m-%d').date()
-            else:
-                date = self._date_from_filename(f)
-            if not options['skip_orgs']:
-                self.import_shas_and_pcts(f, date)
-            self.drop_partition(date)
-            self.create_partition(date)
-            self.import_prescriptions(f, date)
-            self.create_partition_indexes(date)
-            self.add_parent_trigger()
-            self.drop_oldest_month(date)
+            self.date = self._date_from_filename(fname)
+        if not options['skip_orgs']:
+            self.import_pcts_and_practices(fname)
+        self.drop_partition()
+        self.create_partition()
+        self.import_prescriptions(fname)
+        self.create_partition_indexes()
+        self.add_parent_trigger()
+        self.drop_oldest_month()
+        self.refresh_class_currency()
+        logger.info("Done!")
 
-    def import_shas_and_pcts(self, filename, date):
-        logger.info('Importing SHAs and PCTs from %s' % filename)
+    def refresh_class_currency(self):
+        # For every section, paragraph, chemical and product which is
+        # currently marked as not current, see if there has been any
+        # prescribing for it in the current month, and if there has,
+        # mark it as current
+        logger.info("Updating `is_current` on various classifications...")
+        classes = [
+            (Section, 'bnf_id'),
+            (Chemical, 'bnf_code'),
+            (Product, 'bnf_code')
+        ]
+        with transaction.atomic():
+            for model, field_name in classes:
+                for obj in model.objects.filter(is_current=False):
+                    kwargs = {
+                        'processing_date': self.date,
+                        'presentation_code__startswith': getattr(
+                            obj, field_name)
+                    }
+                    count = Prescription.objects.filter(**kwargs).count()
+                    if count > 0:
+                        obj.is_current = True
+                        obj.save()
+
+    def import_pcts_and_practices(self, filename):
+        logger.info('Importing PCTs and practices from %s' % filename)
         rows = csv.reader(open(filename, 'rU'))
-        sha_codes = set()
         pct_codes = set()
+        practices = set()
         i = 0
         for row in rows:
-            sha_codes.add(row[0])
-            pct_codes.add(row[1])
+            pct_codes.add(row[0])
+            practices.add(row[1])
             i += 1
             if self.truncate and i > 500:
                 break
-        shas_created = pcts_created = 0
-        for sha_code in sha_codes:
-            s, created = SHA.objects.get_or_create(code=sha_code)
-            shas_created += created
-        for pct_code in pct_codes:
-            p, created = PCT.objects.get_or_create(code=pct_code)
-            pcts_created += created
-        logger.info("%s SHAs created" % shas_created)
-        logger.info("%s PCTs created" % pcts_created)
+        pcts_created = practices_created = 0
+        with transaction.atomic():
+            for pct_code in pct_codes:
+                p, created = PCT.objects.get_or_create(code=pct_code)
+                pcts_created += created
+            for practice_code in practices:
+                p, created = Practice.objects.get_or_create(code=practice_code)
+                practices_created += created
 
-    def create_partition(self, date):
+        logger.info("%s PCTs created" % pcts_created)
+        logger.info("%s Practices created" % practices_created)
+
+    def create_partition(self):
+        date = self.date
         sql = ("CREATE TABLE %s ("
                "  CHECK ( "
                "    processing_date >= DATE '%s' "
@@ -91,19 +127,23 @@ class Command(BaseCommand):
         constraint_to = "%s-%s-%s" % (
             next_year, str(next_month).zfill(2), "01")
         sql = sql % (
-            self._partition_name(date),
+            self._partition_name(),
             constraint_from,
             constraint_to
         )
         with connection.cursor() as cursor:
             cursor.execute(sql)
-        logger.info("Created partition %s" % self._partition_name(date))
+        logger.info("Created partition %s" % self._partition_name())
 
-    def drop_oldest_month(self, date):
-        five_years_ago = datetime.date(date.year - 5, date.month, date.day)
+    def drop_oldest_month(self):
+        five_years_ago = datetime.date(
+            self.date.year - 5, self.date.month, self.date.day)
         self.drop_partition(five_years_ago)
+        PracticeStatistics.objects.filter(date__lte=five_years_ago).delete()
 
-    def _partition_name(self, date):
+    def _partition_name(self, date=None):
+        if not date:
+            date = self.date
         return "frontend_prescription_%s%s" % (
             date.year, str(date.month).zfill(2))
 
@@ -129,38 +169,23 @@ class Command(BaseCommand):
             cursor.execute(function)
             cursor.execute(trigger)
 
-    def create_partition_indexes(self, date):
+    def create_partition_indexes(self):
         indexes = [
-            ("CREATE INDEX %s_6ea07fe3 "
+            ("CREATE INDEX idx_%s_presentation "
+             "ON %s (presentation_code varchar_pattern_ops)"),
+            ("CREATE INDEX idx_%s_practice_id "
              "ON %s "
              "USING btree (practice_id)"),
-            ("CREATE INDEX %s_by_pct "
-             "ON %s "
-             "USING btree (presentation_code, pct_id)"),
-            ("CREATE INDEX %s_by_pct_and_presentation "
-             "ON %s "
-             "USING btree (pct_id, presentation_code varchar_pattern_ops)"),
-            ("CREATE INDEX %s_by_prac_date_code "
-             "ON %s "
-             "USING btree (practice_id, processing_date, presentation_code)"),
-            ("CREATE INDEX %s_by_practice "
-             "ON %s "
-             "USING btree (presentation_code, practice_id)"),
-            ("CREATE INDEX %s_by_practice_and_code "
-             "ON %s "
-             "USING btree ("
-             "practice_id, presentation_code varchar_pattern_ops)"),
-            ("CREATE INDEX %s_idx_date_and_code "
-             "ON %s "
-             "USING btree (processing_date, presentation_code)")]
+            ("CREATE INDEX idx_%s_pct_id "
+             "ON %s (pct_id)"),
+            ("CREATE INDEX idx_%s_date "
+             "ON %s (processing_date)"),
+            ("CLUSTER %s USING idx_%s_presentation"),
+        ]
         constraints = [
             ("ALTER TABLE %s ADD CONSTRAINT "
              "cnstrt_%s_pkey "
              "PRIMARY KEY (id)"),
-            ("ALTER TABLE %s ADD CONSTRAINT "
-             "cnstrt_%s_chemical_bnf_code "
-             "FOREIGN KEY (chemical_id) REFERENCES frontend_chemical(bnf_code)"
-             " DEFERRABLE INITIALLY DEFERRED"),
             ("ALTER TABLE %s ADD CONSTRAINT "
              "cnstrt_%s__practice_code "
              "FOREIGN KEY (practice_id) REFERENCES frontend_practice(code) "
@@ -169,12 +194,8 @@ class Command(BaseCommand):
              "cnstrt_%s__pct_code "
              "FOREIGN KEY (pct_id) REFERENCES frontend_pct(code) "
              "DEFERRABLE INITIALLY DEFERRED"),
-            ("ALTER TABLE %s ADD CONSTRAINT "
-             "cnstrt_%s__sha_code "
-             "FOREIGN KEY (sha_id) REFERENCES frontend_sha(code) "
-             "DEFERRABLE INITIALLY DEFERRED")
             ]
-        partition_name = self._partition_name(date)
+        partition_name = self._partition_name()
         with connection.cursor() as cursor:
             for index_sql in indexes:
                 cursor.execute(index_sql % (
@@ -183,18 +204,18 @@ class Command(BaseCommand):
                 cursor.execute(constraint_sql % (
                     partition_name, partition_name))
 
-    def drop_partition(self, date):
-        logger.info('Dropping partition %s' % self._partition_name(date))
-        sql = "DROP TABLE IF EXISTS %s" % self._partition_name(date)
+    def drop_partition(self, date=None):
+        logger.info('Dropping partition %s' % self._partition_name(date=date))
+        sql = "DROP TABLE IF EXISTS %s" % self._partition_name(date=date)
         with connection.cursor() as cursor:
             cursor.execute(sql)
 
-    def import_prescriptions(self, filename, date):
+    def import_prescriptions(self, filename):
         logger.info('Importing Prescriptions from %s' % filename)
         # start = time.clock()
-        copy_str = "COPY %s(sha_id,pct_id,"
-        copy_str += "practice_id,chemical_id,presentation_code,"
-        copy_str += "presentation_name,total_items,actual_cost,"
+        copy_str = "COPY %s(pct_id,"
+        copy_str += "practice_id,presentation_code,"
+        copy_str += "total_items,actual_cost,"
         copy_str += "quantity,processing_date) FROM STDIN "
         copy_str += "WITH (FORMAT CSV)"
         i = 0
@@ -210,14 +231,19 @@ class Command(BaseCommand):
         else:
             file_obj = open(filename)
         with connection.cursor() as cursor:
-            cursor.copy_expert(copy_str % self._partition_name(date), file_obj)
+            cursor.copy_expert(copy_str % self._partition_name(), file_obj)
             ImportLog.objects.create(
-                current_at=date,
+                current_at=self.date,
                 filename=filename,
                 category='prescribing'
             )
 
     def _date_from_filename(self, filename):
-        file_str = filename.split('/')[-1].split('.')[0]
-        file_str = re.sub(r'PDPI.BNFT_formatted', '', file_str)
-        return datetime.date(int(file_str[1:5]), int(file_str[5:]), 1)
+        new_style = re.match(r'.*/([0-9]{4}_[0-9]{2})/', filename)
+        if new_style:
+            year, month = new_style.groups()[0].split('_')
+            date = datetime.date(int(year), int(month), 1)
+        else:
+            file_str = filename.replace('T', '').split('/')[-1].split('.')[0]
+            date = datetime.date(int(file_str[0:4]), int(file_str[4:6]), 1)
+        return date
