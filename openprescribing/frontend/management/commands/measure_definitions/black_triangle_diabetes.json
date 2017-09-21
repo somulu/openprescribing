@@ -19,11 +19,11 @@
   "numerator_columns": [
     "SUM(bt_items) AS numerator, "
   ],
-  "numerator_from": "[ebmdatalab:tmp_eu.black_triangle_ratios] ",
+  "numerator_from": "[ebmdatalab:measures.black_triangle_ratios] ",
   "numerator_where": ["category = 'Diabetes'"],
   "denominator_columns": [
     "SUM(expected_bt_items) AS denominator, "
   ],
   "denominator_where": ["category = 'Diabetes'"],
-  "denominator_from": "[ebmdatalab:tmp_eu.black_triangle_ratios] "
+  "denominator_from": "[ebmdatalab:measures.black_triangle_ratios] "
 }
