@@ -481,6 +481,7 @@ class GlobalCalculation(MeasureCalculation):
             measure.numerator_short = v['numerator_short']
             measure.denominator_short = v['denominator_short']
             measure.url = v['url']
+            measure.tags = v['tags']
             measure.is_cost_based = v['is_cost_based']
             measure.is_percentage = v['is_percentage']
             measure.low_is_good = v['low_is_good']
@@ -495,6 +496,7 @@ class GlobalCalculation(MeasureCalculation):
                 numerator_short=v['numerator_short'],
                 denominator_short=v['denominator_short'],
                 url=v['url'],
+                tags=v['tags'],
                 is_cost_based=v['is_cost_based'],
                 is_percentage=v['is_percentage'],
                 low_is_good=v['low_is_good']
