@@ -230,11 +230,9 @@ class MeasureCalculation(object):
         self.measure_id = measure_id
         self.measure = parse_measures()[measure_id]
         if 'start_date' in self.measure:
-            start_date = datetime.datetime.strptime(
-                self.measure['start_date'], "%Y-%m-%d")
+            start_date = self.measure['start_date']
         if 'end_date' in self.measure:
-            end_date = datetime.datetime.strptime(
-                self.measure['end_date'], "%Y-%m-%d")
+            end_date = self.measure['end_date']
         self.start_date = start_date
         self.end_date = end_date
         self.under_test = under_test
