@@ -10,6 +10,7 @@
   "numerator_short": "Black triangle insulin and anti-diabetic items",
   "denominator_short": "All insulin and anti-diabetic items",
   "url": null,
+  "tags": ["core"],
   "is_percentage": false,
   "is_cost_based": false,
   "low_is_good": null,

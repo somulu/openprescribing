@@ -10,9 +10,12 @@
   "numerator_short": "Black triangle insulin and anti-diabetic items",
   "denominator_short": "Expected items based on England-wide mean ratio",
   "url": null,
+  "tags": ["core"],
   "is_percentage": false,
   "is_cost_based": false,
   "low_is_good": null,
+  "start_date": "2014-01-01",
+  "end_date": "2017-01-01",
   "numerator_columns": [
     "SUM(bt_items) AS numerator, "
   ],
