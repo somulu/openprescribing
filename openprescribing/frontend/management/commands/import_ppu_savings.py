@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from ebmdatalab.bigquery import query_and_return
+from gcutils.bigquery import Client
 
 from common.utils import valid_date
 from dmd.models import DMDProduct
@@ -79,7 +79,7 @@ def make_merged_table_for_month(month):
         seen.add(source_code)
         seen.add(code_to_merge)
     prescribing_table = settings.BQ_PRESCRIBING_TABLE_NAME_STANDARD
-    query = """
+    sql = """
       SELECT
         practice,
         pct,
@@ -101,9 +101,10 @@ def make_merged_table_for_month(month):
            month)
     target_table_name = (
         'prescribing_with_merged_codes_%s' % month.strftime('%Y_%m'))
-    query_and_return('ebmdatalab', 'hscic',
-                     target_table_name,
-                     query, legacy=False)
+
+    client = Client(settings.BQ_HSCIC_DATASET)
+    table = client.get_table(target_table_name)
+    table.insert_rows_from_query(sql)
     return target_table_name
 
 
@@ -237,8 +238,8 @@ class Command(BaseCommand):
             last_prescribing = ImportLog.objects.latest_in_category(
                 'prescribing').current_at
             last_ppu = ImportLog.objects.latest_in_category(
-                'ppu').current_self.assertTrue()
-            options['month'] = past_prescribing
+                'ppu').current_at
+            options['month'] = last_prescribing
             if options['month'] <= last_ppu:
                 raise argparse.ArgumentTypeError("Couldn't infer date")
         with transaction.atomic():
