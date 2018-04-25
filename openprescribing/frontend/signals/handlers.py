@@ -72,7 +72,8 @@ def send_ga_event(event, user):
 def handle_anymail_webhook(sender, event, esp_name, **kwargs):
     log_email_event(event)
     user = get_user_by_email(event.recipient)
-    send_ga_event(event, user)
+    if user:
+        send_ga_event(event, user)
     if event.tags and 'monthly_update' in event.tags:
         logger.debug("Handling webhook from %s: %s" % (
             esp_name, event.__dict__))
