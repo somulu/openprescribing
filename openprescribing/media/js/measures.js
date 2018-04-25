@@ -182,6 +182,8 @@
     }
   };
   $(document).ready(function() {
+    $('#antibiotics-questionnaire').modal('toggle');
+    $('#antibiotics-questionnaire form').on('submit').modal('toggle');
     measures.setUp();
     $('.doorbell-show').click(function(e) {
       if (typeof doorbell !== 'undefined') {

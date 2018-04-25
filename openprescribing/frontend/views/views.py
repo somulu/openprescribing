@@ -13,6 +13,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.db import connection
 from django.db import IntegrityError
 from django.http import Http404
 from django.http import HttpResponse
@@ -430,13 +431,32 @@ def _handleCreateBookmark(request, subject_class,
 def measures_for_one_practice(request, code):
     p = get_object_or_404(Practice, code=code)
     if request.method == 'POST':
-        form = _handleCreateBookmark(
-            request,
-            OrgBookmark,
-            OrgBookmarkForm,
-            'practice')
-        if isinstance(form, HttpResponseRedirect):
-            return form
+        if 'survey_response' in request.POST:
+            # Update the database with the response, say thanks,
+            # continue.  As this is a temporary measure during the RCT
+            # period, we directly interface with the database, rather
+            # than duplicating models between apps (the model is
+            # defined in our `antibioticsrct` app). Following the RCT
+            # everything in the commit that added this can be removed.
+            if request.POST['survey_response'].lower() == 'yes':
+                value = 't'
+            else:
+                value = 'f'
+            sql = ("UPDATE antibioticsrct_interventioncontact "
+                   "SET survey_response = %s WHERE practice_id = %s")
+            with connection.cursor() as cursor:
+                cursor.execute(sql, [value, code])
+            form = OrgBookmarkForm(
+                initial={'practice': p.pk,
+                         'email': getattr(request.user, 'email', '')})
+        else:
+            form = _handleCreateBookmark(
+                request,
+                OrgBookmark,
+                OrgBookmarkForm,
+                'practice')
+            if isinstance(form, HttpResponseRedirect):
+                return form
     else:
         form = OrgBookmarkForm(
             initial={'practice': p.pk,

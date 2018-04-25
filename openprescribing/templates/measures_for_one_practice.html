@@ -11,6 +11,29 @@
 
 {% block content %}
 
+{% if request.GET.first  %}
+<div id="antibiotics-questionnaire" class="modal">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-body">
+
+        <form method="post" action="{% url 'measures_for_one_practice' practice.code %}">
+          {% csrf_token %}
+          <p>
+            Before you continue, we'd appreciate your time answering one simple question:
+          </p>
+          <p><b>Did the message we sent give you new information about
+            your prescribing?</b>
+          </p>
+          <input type="submit" name="survey_response" value="Yes" class="btn btn-default">
+          <input type="submit" name="survey_response" value="No" class="btn btn-default">
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <h1>{{ practice }}</h1>
 <div class="row">
   <div class="col-md-12">
