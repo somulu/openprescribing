@@ -11,8 +11,10 @@ black --check --diff \
   .
 status=$(( $status + $? ))
 
-# We should add a pyflakes check here and probably something like jshint for
-# our JavaScript as well
+flake8
+status=$(( $status + $? ))
+
+# We should add something like jshint for our JavaScript as well
 
 # We add up all the exit statuses of the lint commands. If the total is
 # greater than zero then at least one command failed so we exit with an error
